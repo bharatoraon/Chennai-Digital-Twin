@@ -17,6 +17,9 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <!-- fflate for fast client-side gzip decompression -->
+    <script src="https://unpkg.com/fflate@0.8.2/umd/index.js"></script>
+    
     <style>
         :root {
             --bg-glass: rgba(15, 23, 42, 0.75);
@@ -744,15 +747,19 @@
             console.log("Map style loaded. Loading GeoJSON data...");
 
             // Load GeoJSON Data
-            fetch('cma_buildings_3d.geojson')
+            fetch('cma_buildings_3d.geojson.gz')
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Data file cma_buildings_3d.geojson not found.');
+                        throw new Error('Data file cma_buildings_3d.geojson.gz not found.');
                     }
-                    return response.json();
+                    return response.arrayBuffer();
                 })
-                .then(data => {
-                    console.log("Data loaded successfully. Computing statistics...");
+                .then(buf => {
+                    console.log("Compressed GeoJSON downloaded. Decompressing...");
+                    const decompressed = fflate.gunzipSync(new Uint8Array(buf));
+                    const jsonText = new TextDecoder().decode(decompressed);
+                    const data = JSON.parse(jsonText);
+                    console.log("Data loaded and parsed successfully. Computing statistics...");
                     globalGeojsonData = data;
                     calculateStats(data);
                     

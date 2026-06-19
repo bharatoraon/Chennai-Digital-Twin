@@ -24,7 +24,7 @@ An interactive, high-performance 3D visualization and analysis tool for building
 └── CMA.geojson                 # Chennai Metropolitan Area boundary shape (GeoJSON)
 ```
 
-> **Note**: Large datasets (`cma_buildings_3d.geojson` and `cma_building_height_2022.tif`) are excluded from this repository via `.gitignore` to comply with GitHub's file size limits. They can be generated locally using the pipeline.
+> **Note**: The large raw datasets (`cma_buildings_3d.geojson` and `cma_building_height_2022.tif`) are excluded from this repository via `.gitignore` to comply with GitHub limits. However, the optimized, compressed dataset **`cma_buildings_3d.geojson.gz`** (60 MB) is committed and served directly to the browser, allowing out-of-the-box hosting on Vercel or GitHub Pages.
 
 ---
 
