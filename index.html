@@ -36,6 +36,7 @@
             --bg-card: rgba(255, 255, 255, 0.03);
             --border-card: rgba(255, 255, 255, 0.04);
             --bg-select: rgba(15, 23, 42, 0.85);
+            --slider-track: rgba(255, 255, 255, 0.1);
             --font-main: 'Outfit', sans-serif;
             --font-mono: 'Space Grotesk', sans-serif;
         }
@@ -90,7 +91,7 @@
         }
 
         .header {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border-glass);
             padding-bottom: 12px;
         }
 
@@ -98,7 +99,7 @@
             font-family: var(--font-mono);
             font-size: 22px;
             font-weight: 700;
-            background: linear-gradient(135deg, #fff 30%, var(--accent-primary) 100%);
+            background: linear-gradient(135deg, var(--text-primary) 30%, var(--accent-primary) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             display: flex;
@@ -181,7 +182,7 @@
         .slider {
             width: 100%;
             height: 6px;
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--slider-track);
             border-radius: 3px;
             outline: none;
             -webkit-appearance: none;
@@ -267,7 +268,7 @@
 
         .nav-btn:hover {
             border-color: var(--accent-primary);
-            background: rgba(6, 182, 212, 0.1);
+            background: var(--accent-primary-glow);
             transform: translateY(-2px);
         }
 
@@ -313,7 +314,7 @@
         .spinner {
             width: 50px;
             height: 50px;
-            border: 3px solid rgba(6, 182, 212, 0.1);
+            border: 3px solid var(--border-glass);
             border-top: 3px solid var(--accent-primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -325,7 +326,7 @@
             font-size: 18px;
             font-weight: 600;
             letter-spacing: 1px;
-            background: linear-gradient(135deg, #fff 40%, var(--accent-primary) 100%);
+            background: linear-gradient(135deg, var(--text-primary) 40%, var(--accent-primary) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -360,7 +361,7 @@
 
         .toggle-sidebar-btn:hover {
             border-color: var(--accent-primary);
-            background: rgba(6, 182, 212, 0.1);
+            background: var(--accent-primary-glow);
         }
 
         /* Map controls styling override */
@@ -378,7 +379,7 @@
         }
 
         .maplibregl-ctrl-group button:hover {
-            background: rgba(255, 255, 255, 0.05) !important;
+            background: var(--bg-card) !important;
         }
 
         /* Popup Styling */
@@ -675,7 +676,8 @@
                 '--accent-primary-glow': 'rgba(37, 99, 235, 0.2)',
                 '--bg-card': 'rgba(0, 0, 0, 0.03)',
                 '--border-card': 'rgba(0, 0, 0, 0.05)',
-                '--bg-select': 'rgba(255, 255, 255, 0.9)'
+                '--bg-select': 'rgba(255, 255, 255, 0.9)',
+                '--slider-track': 'rgba(0, 0, 0, 0.1)'
             },
             dark: {
                 '--bg-body': '#020617',
@@ -687,7 +689,8 @@
                 '--accent-primary-glow': 'rgba(6, 182, 212, 0.3)',
                 '--bg-card': 'rgba(255, 255, 255, 0.03)',
                 '--border-card': 'rgba(255, 255, 255, 0.04)',
-                '--bg-select': 'rgba(15, 23, 42, 0.85)'
+                '--bg-select': 'rgba(15, 23, 42, 0.85)',
+                '--slider-track': 'rgba(255, 255, 255, 0.1)'
             },
             night: {
                 '--bg-body': '#000000',
@@ -699,7 +702,8 @@
                 '--accent-primary-glow': 'rgba(0, 229, 255, 0.4)',
                 '--bg-card': 'rgba(0, 229, 255, 0.02)',
                 '--border-card': 'rgba(0, 229, 255, 0.08)',
-                '--bg-select': 'rgba(0, 0, 0, 0.95)'
+                '--bg-select': 'rgba(0, 0, 0, 0.95)',
+                '--slider-track': 'rgba(0, 229, 255, 0.15)'
             }
         };
 
