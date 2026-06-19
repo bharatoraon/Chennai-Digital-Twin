@@ -5,6 +5,7 @@ An interactive, high-performance 3D visualization and analysis tool for building
 ## Features
 
 - **Dynamic 3D Extrusions**: Visualize building heights in 3D, styled with rich color ramps.
+- **Map Themes (Day, Dark, & Night)**: Toggle dynamically between Day Mode (Positron GL), Dark Mode (Slate-Blue GL), and Night Mode (Midnight-Black with glowing neon roads, navy water, and cyan borders) with no map flashes when switching dark themes.
 - **Estimated Floor Height Slider**: Adjust the floor height parameter dynamically (from `3.0m` to `4.4m` per floor) to recalculate floor count estimates and metropolitan statistics in real-time.
 - **Color Themes**: Toggle on the fly between **Color by Height** and **Color by Est. Use** (Residential, Commercial, Apartments, Industrial, Institutional).
 - **Interactive Tooltips**: Hover over any building to view its estimated use class, height in meters, floor count, footprint area, confidence score, and Plus Code.
