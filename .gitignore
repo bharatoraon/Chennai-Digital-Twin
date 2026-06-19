@@ -1,0 +1,16 @@
+# Ignore large datasets
+cma_building_height_2022.tif
+cma_buildings_3d.geojson
+cma_filtered.csv
+cma_buildings_footprints.geojson
+cma_buildings_3d.geojson.tmp
+
+# OS files
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/

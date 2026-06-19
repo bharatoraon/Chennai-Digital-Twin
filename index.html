@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chennai 3D Buildings Explorer - Google Open Buildings 2.5D</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Maplibre GL JS -->
+    <script src="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css" rel="stylesheet" />
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        :root {
+            --bg-glass: rgba(15, 23, 42, 0.75);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-primary: #06b6d4; /* Teal */
+            --accent-primary-glow: rgba(6, 182, 212, 0.3);
+            --accent-height-1: #3b82f6; /* Blue (<5m) */
+            --accent-height-2: #10b981; /* Emerald (5m-15m) */
+            --accent-height-3: #f59e0b; /* Amber (15m-30m) */
+            --accent-height-4: #ef4444; /* Red (>30m) */
+            --font-main: 'Outfit', sans-serif;
+            --font-mono: 'Space Grotesk', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #020617;
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* Glassmorphism Sidebar */
+        .sidebar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            bottom: 20px;
+            width: 400px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            z-index: 10;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow-y: auto;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-440px);
+        }
+
+        .header {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 12px;
+        }
+
+        .header h1 {
+            font-family: var(--font-mono);
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 30%, var(--accent-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Stats Panel */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: rgba(6, 182, 212, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .stat-card span.value {
+            font-family: var(--font-mono);
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .stat-card span.label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Slider Controls Section */
+        .control-panel {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 14px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .control-label {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .control-val {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            box-shadow: 0 0 10px var(--accent-primary-glow);
+            transition: transform 0.2s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Panel section */
+        .panel-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .section-title {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+        }
+
+        /* Navigation list */
+        .nav-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            border-color: var(--accent-primary);
+            background: rgba(6, 182, 212, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn-text {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+        }
+
+        .nav-btn-title {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .nav-btn-desc {
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #020617;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .loading-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(6, 182, 212, 0.1);
+            border-top: 3px solid var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            box-shadow: 0 0 20px var(--accent-primary-glow);
+        }
+
+        .loading-title {
+            font-family: var(--font-mono);
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #fff 40%, var(--accent-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Toggle Sidebar Button */
+        .toggle-sidebar-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 48px;
+            height: 48px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            z-index: 9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-primary);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .toggle-sidebar-btn.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .toggle-sidebar-btn:hover {
+            border-color: var(--accent-primary);
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        /* Map controls styling override */
+        .maplibregl-ctrl-group {
+            background: var(--bg-glass) !important;
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid var(--border-glass) !important;
+            border-radius: 12px !important;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+        }
+
+        .maplibregl-ctrl-group button {
+            color: var(--text-primary) !important;
+        }
+
+        .maplibregl-ctrl-group button:hover {
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        /* Popup Styling */
+        .maplibregl-popup-content {
+            background: rgba(15, 23, 42, 0.9) !important;
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px !important;
+            padding: 16px !important;
+            color: var(--text-primary) !important;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        .maplibregl-popup-anchor-top .maplibregl-popup-tip {
+            border-bottom-color: rgba(15, 23, 42, 0.9) !important;
+        }
+        .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+            border-top-color: rgba(15, 23, 42, 0.9) !important;
+        }
+        .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+            border-right-color: rgba(15, 23, 42, 0.9) !important;
+        }
+        .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+            border-left-color: rgba(15, 23, 42, 0.9) !important;
+        }
+
+        .popup-title {
+            font-family: var(--font-mono);
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--accent-primary);
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 6px;
+        }
+
+        .popup-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .popup-label {
+            color: var(--text-secondary);
+        }
+
+        .popup-value {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Close button for sidebar */
+        .close-sidebar-btn {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close-sidebar-btn:hover {
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-title">Loading 3D Buildings...</div>
+    </div>
+
+    <!-- Toggle Sidebar Button (visible when sidebar is collapsed) -->
+    <div class="toggle-sidebar-btn" id="toggleSidebarBtn">
+        <i data-lucide="menu"></i>
+    </div>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Sidebar Dashboard -->
+    <div class="sidebar" id="sidebar">
+        <button class="close-sidebar-btn" id="closeSidebarBtn">
+            <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+        </button>
+
+        <div class="header">
+            <h1><i data-lucide="building-2" style="color: var(--accent-primary); width: 24px; height: 24px;"></i>Chennai 3D Map</h1>
+            <p>Google Open Buildings 2.5D Temporal Heights (2022)</p>
+        </div>
+
+        <!-- Calculator Settings -->
+        <div class="control-panel">
+            <div class="section-title">
+                <i data-lucide="sliders" style="width: 16px; height: 16px;"></i>
+                Calculation Parameters
+            </div>
+            <div class="control-row">
+                <span class="control-label">Est. Floor Height</span>
+                <span class="control-val" id="floorHeightLabel">3.5 m</span>
+            </div>
+            <input type="range" class="slider" id="floorHeightSlider" min="3.0" max="4.4" step="0.1" value="3.5">
+            <p style="font-size: 10px; color: var(--text-secondary); margin-top: -4px; margin-bottom: 12px;">
+                Adjust height threshold dynamically (between 3.0m and 4.4m per floor)
+            </p>
+            
+            <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-top: 4px;">
+                <div class="control-row">
+                    <span class="control-label"><i data-lucide="palette" style="width: 13px; height: 13px; display: inline-align; vertical-align: middle; margin-right: 4px; color: var(--accent-primary);"></i>Color Theme</span>
+                    <select id="colorModeSelect" style="background: rgba(15, 23, 42, 0.85); border: 1px solid var(--border-glass); color: var(--text-primary); border-radius: 8px; padding: 5px 10px; font-family: var(--font-main); font-size: 12px; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                        <option value="height">Color by Height</option>
+                        <option value="use">Color by Est. Use</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Panel -->
+        <div class="panel-section">
+            <div class="section-title">
+                <i data-lucide="bar-chart-2" style="width: 16px; height: 16px;"></i>
+                Metropolitan Stats
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="value" id="statCount">-</span>
+                    <span class="label">Total Buildings</span>
+                </div>
+                <div class="stat-card">
+                    <span class="value" id="statAvgHeight">-</span>
+                    <span class="label">Avg Height (m)</span>
+                </div>
+                <div class="stat-card">
+                    <span class="value" id="statAvgFloors">-</span>
+                    <span class="label">Avg Floors</span>
+                </div>
+                <div class="stat-card">
+                    <span class="value" id="statMaxFloors">-</span>
+                    <span class="label">Max Floors</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="panel-section">
+            <div class="section-title">
+                <i data-lucide="layers" style="width: 16px; height: 16px;"></i>
+                <span id="legendTitle">Height Classification</span>
+            </div>
+            <div class="legend-list" id="legendContainer">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: var(--accent-height-1);"></div>
+                    <span>Single-story / Low (< 5m)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: var(--accent-height-2);"></div>
+                    <span>Medium Rise (5m - 15m)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: var(--accent-height-3);"></div>
+                    <span>High Rise (15m - 30m)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: var(--accent-height-4);"></div>
+                    <span>Skyline Tower (> 30m)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Locations Navigation -->
+        <div class="panel-section">
+            <div class="section-title">
+                <i data-lucide="compass" style="width: 16px; height: 16px;"></i>
+                Quick Navigation
+            </div>
+            <div class="nav-list">
+                <div class="nav-btn" onclick="flyToLocation([80.2707, 13.0827], 15, 60, 45)">
+                    <div class="nav-btn-text">
+                        <span class="nav-btn-title">Chennai Central Area</span>
+                        <span class="nav-btn-desc">High-density urban core</span>
+                    </div>
+                    <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                </div>
+                <div class="nav-btn" onclick="flyToLocation([80.2214, 12.9734], 14.5, 45, 60)">
+                    <div class="nav-btn-text">
+                        <span class="nav-btn-title">OMR / IT Corridor</span>
+                        <span class="nav-btn-desc">High-rise commercial skyline</span>
+                    </div>
+                    <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                </div>
+                <div class="nav-btn" onclick="flyToLocation([80.1462, 13.0067], 12.5, 0, 0)">
+                    <div class="nav-btn-text">
+                        <span class="nav-btn-title">Full Boundary View</span>
+                        <span class="nav-btn-desc">Chennai Metropolitan Area</span>
+                    </div>
+                    <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Elements
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const sidebar = document.getElementById('sidebar');
+        const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+        const floorHeightSlider = document.getElementById('floorHeightSlider');
+        const floorHeightLabel = document.getElementById('floorHeightLabel');
+        const colorModeSelect = document.getElementById('colorModeSelect');
+        const legendTitle = document.getElementById('legendTitle');
+        const legendContainer = document.getElementById('legendContainer');
+
+        // Global variables for calculations
+        let globalGeojsonData = null;
+        let selectedFloorHeight = 3.5; // default in meters
+        let activeColorMode = 'height'; // 'height' or 'use'
+
+        // Sidebar Toggle Logic
+        closeSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.add('collapsed');
+            toggleSidebarBtn.classList.add('visible');
+        });
+
+        toggleSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.remove('collapsed');
+            toggleSidebarBtn.classList.remove('visible');
+        });
+
+        // Slider Change Logic
+        floorHeightSlider.addEventListener('input', (e) => {
+            selectedFloorHeight = parseFloat(e.target.value);
+            floorHeightLabel.innerText = selectedFloorHeight.toFixed(1) + ' m';
+            if (globalGeojsonData) {
+                calculateStats(globalGeojsonData);
+            }
+        });
+
+        // Color theme mapping expressions for Maplibre
+        const heightPaintProperty = [
+            'interpolate',
+            ['linear'],
+            ['get', 'height'],
+            0, '#1e1b4b',   // deep indigo
+            3, '#3b82f6',   // low: blue
+            10, '#10b981',  // medium: emerald
+            20, '#f59e0b',  // high: amber
+            40, '#ef4444'   // skyscraper: red
+        ];
+
+        const usePaintProperty = [
+            'match',
+            ['get', 'estimated_use'],
+            'Residential (Low Density)', '#3b82f6',
+            'Residential / Independent House', '#60a5fa',
+            'Apartments / Mixed-Use', '#10b981',
+            'Apartments (Medium Rise)', '#34d399',
+            'Apartments (High Rise)', '#059669',
+            'Commercial / Retail', '#f59e0b',
+            'Commercial / Office / Retail', '#fbbf24',
+            'Commercial / Office', '#d97706',
+            'Commercial Office Tower / Corporate Hub', '#ec4899',
+            'Industrial / Warehouse', '#ef4444',
+            'Institutional / Public Building', '#8b5cf6',
+            '#94a3b8' // fallback gray
+        ];
+
+        // Color Mode Change Listener
+        colorModeSelect.addEventListener('change', (e) => {
+            activeColorMode = e.target.value;
+            updateVisualizationTheme();
+        });
+
+        function updateVisualizationTheme() {
+            if (!map.getLayer('buildings-3d')) return;
+
+            if (activeColorMode === 'height') {
+                map.setPaintProperty('buildings-3d', 'fill-extrusion-color', heightPaintProperty);
+                legendTitle.innerText = 'Height Classification';
+                legendContainer.innerHTML = `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #3b82f6;"></div>
+                        <span>Single-story / Low (< 5m)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #10b981;"></div>
+                        <span>Medium Rise (5m - 15m)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #f59e0b;"></div>
+                        <span>High Rise (15m - 30m)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #ef4444;"></div>
+                        <span>Skyline Tower (> 30m)</span>
+                    </div>
+                `;
+            } else {
+                map.setPaintProperty('buildings-3d', 'fill-extrusion-color', usePaintProperty);
+                legendTitle.innerText = 'Estimated Use Class';
+                legendContainer.innerHTML = `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #3b82f6;"></div>
+                        <span>Residential (Low Density / Houses)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #10b981;"></div>
+                        <span>Apartments (Medium / High Rise)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #f59e0b;"></div>
+                        <span>Commercial / Office / Retail</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #ef4444;"></div>
+                        <span>Industrial / Warehouses</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #8b5cf6;"></div>
+                        <span>Institutional / Public Buildings</span>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize Maplibre GL Map
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+            center: [80.1462, 13.0067], // Centered around Chennai
+            zoom: 10.5,
+            pitch: 45, // Angled for 3D extrusion
+            bearing: 0,
+            antialias: true
+        });
+
+        // Add Navigation controls
+        map.addControl(new maplibregl.NavigationControl({
+            visualizePitch: true
+        }), 'top-right');
+
+        // Fly to location helper
+        function flyToLocation(coord, zoom, bearing, pitch) {
+            map.flyTo({
+                center: coord,
+                zoom: zoom,
+                bearing: bearing,
+                pitch: pitch,
+                duration: 4000,
+                essential: true
+            });
+        }
+
+        // On Map Load
+        map.on('load', () => {
+            console.log("Map style loaded. Loading GeoJSON data...");
+
+            // Load GeoJSON Data
+            fetch('cma_buildings_3d.geojson')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Data file cma_buildings_3d.geojson not found.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Data loaded successfully. Computing statistics...");
+                    globalGeojsonData = data;
+                    calculateStats(data);
+                    
+                    // Add Source
+                    map.addSource('buildings', {
+                        type: 'geojson',
+                        data: data
+                    });
+
+                    // Add 3D Extrusion Layer
+                    map.addLayer({
+                        'id': 'buildings-3d',
+                        'type': 'fill-extrusion',
+                        'source': 'buildings',
+                        'paint': {
+                            // Style buildings colors based on height
+                            'fill-extrusion-color': [
+                                'interpolate',
+                                ['linear'],
+                                ['get', 'height'],
+                                0, '#1e1b4b',   // deep indigo
+                                3, '#3b82f6',   // low: blue
+                                10, '#10b981',  // medium: emerald
+                                20, '#f59e0b',  // high: amber
+                                40, '#ef4444'   // skyscraper: red
+                            ],
+                            // Height property from GEE temporal heights
+                            'fill-extrusion-height': ['get', 'height'],
+                            // Extrusion base starts at ground
+                            'fill-extrusion-base': 0,
+                            // Opacity for sleek glow
+                            'fill-extrusion-opacity': 0.85
+                        }
+                    });
+
+                    // Setup hover interaction
+                    setupInteractions();
+
+                    // Hide Loading overlay
+                    loadingOverlay.classList.add('fade-out');
+                })
+                .catch(error => {
+                    console.error("Error loading building data:", error);
+                    alert("Building data 'cma_buildings_3d.geojson' not found. Please ensure you run 'download_footprints.py' and 'join_heights.py' first to generate the file!");
+                    // Hide loading overlay anyway to let user see basemap
+                    loadingOverlay.classList.add('fade-out');
+                });
+        });
+
+        // Compute Statistics and Update UI
+        function calculateStats(geojson) {
+            const features = geojson.features || [];
+            const count = features.length;
+            
+            let sumHeight = 0;
+            let maxHeight = 0;
+            let sumFloors = 0;
+            let maxFloors = 0;
+
+            features.forEach(f => {
+                const h = f.properties.height || 0;
+                sumHeight += h;
+                if (h > maxHeight) maxHeight = h;
+                
+                // Calculate estimated floors based on selectedFloorHeight slider
+                const floors = Math.max(1, Math.round(h / selectedFloorHeight));
+                sumFloors += floors;
+                if (floors > maxFloors) maxFloors = floors;
+            });
+
+            const avgHeight = count > 0 ? (sumHeight / count).toFixed(1) : 0;
+            const avgFloors = count > 0 ? (sumFloors / count).toFixed(1) : 0;
+
+            // Format numbers and update UI
+            document.getElementById('statCount').innerText = count.toLocaleString();
+            document.getElementById('statAvgHeight').innerText = avgHeight;
+            document.getElementById('statAvgFloors').innerText = avgFloors;
+            document.getElementById('statMaxFloors').innerText = maxFloors.toLocaleString();
+        }
+
+        // Setup tooltips on hover
+        let popup = null;
+
+        function setupInteractions() {
+            // Hover event
+            map.on('mousemove', 'buildings-3d', (e) => {
+                map.getCanvas().style.cursor = 'pointer';
+
+                if (e.features.length > 0) {
+                    const feature = e.features[0];
+                    const props = feature.properties;
+                    const height = props.height || 0;
+                    
+                    // Dynamic floor count based on current selected floor height slider
+                    const floors = Math.max(1, Math.round(height / selectedFloorHeight));
+                    const area = props.area ? Math.round(props.area) : '-';
+                    const confidence = props.confidence ? (props.confidence * 100).toFixed(0) + '%' : '-';
+                    const plusCode = props.plus_code || '-';
+                    const estimatedUse = props.estimated_use || 'Unknown / General';
+
+                    const html = `
+                        <div class="popup-title">Building Details</div>
+                        <div class="popup-row">
+                            <span class="popup-label">Estimated Use:</span>
+                            <span class="popup-value" style="font-weight:700; color:var(--accent-primary);">${estimatedUse}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Height:</span>
+                            <span class="popup-value">${height.toFixed(1)} meters</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Est. Floors (${selectedFloorHeight.toFixed(1)}m/fl):</span>
+                            <span class="popup-value" style="font-weight:700; color:var(--accent-primary);">${floors} ${floors === 1 ? 'floor' : 'floors'}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Footprint Area:</span>
+                            <span class="popup-value">${area} m²</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Model Confidence:</span>
+                            <span class="popup-value">${confidence}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Plus Code:</span>
+                            <span class="popup-value" style="font-family: monospace;">${plusCode}</span>
+                        </div>
+                    `;
+
+                    if (!popup) {
+                        popup = new maplibregl.Popup({
+                            closeButton: false,
+                            closeOnClick: false,
+                            anchor: 'bottom'
+                        });
+                    }
+
+                    popup.setLngLat(e.lngLat)
+                         .setHTML(html)
+                         .addTo(map);
+                }
+            });
+
+            // Leave event
+            map.on('mouseleave', 'buildings-3d', () => {
+                map.getCanvas().style.cursor = '';
+                if (popup) {
+                    popup.remove();
+                    popup = null;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
