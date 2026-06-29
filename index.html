@@ -737,47 +737,47 @@
         const usePaintProperties = {
             day: [
                 'match', ['get', 'estimated_use'],
-                'Residential (Low Density)', '#2563eb',
-                'Residential / Independent House', '#3b82f6',
-                'Apartments / Mixed-Use', '#059669',
-                'Apartments (Medium Rise)', '#10b981',
-                'Apartments (High Rise)', '#34d399',
-                'Commercial / Retail', '#d97706',
-                'Commercial / Office / Retail', '#f59e0b',
-                'Commercial / Office', '#fbbf24',
-                'Commercial Office Tower / Corporate Hub', '#db2777',
-                'Industrial / Warehouse', '#dc2626',
-                'Institutional / Public Building', '#7c3aed',
+                'Residential (Low Density)', '#facc15', // UDPFI Yellow
+                'Residential / Independent House', '#eab308', // UDPFI Yellow (darker)
+                'Apartments / Mixed-Use', '#eab308', // UDPFI Yellow
+                'Apartments (Medium Rise)', '#ca8a04', // UDPFI Yellow
+                'Apartments (High Rise)', '#ca8a04', // UDPFI Yellow
+                'Commercial / Retail', '#60a5fa', // UDPFI Blue (light)
+                'Commercial / Office / Retail', '#3b82f6', // UDPFI Blue
+                'Commercial / Office', '#2563eb', // UDPFI Blue
+                'Commercial Office Tower / Corporate Hub', '#1d4ed8', // UDPFI Blue (dark)
+                'Industrial / Warehouse', '#a855f7', // UDPFI Violet/Purple
+                'Institutional / Public Building', '#ef4444', // UDPFI Red
                 '#64748b'
             ],
             dark: [
                 'match', ['get', 'estimated_use'],
-                'Residential (Low Density)', '#3b82f6',
-                'Residential / Independent House', '#60a5fa',
-                'Apartments / Mixed-Use', '#10b981',
-                'Apartments (Medium Rise)', '#34d399',
-                'Apartments (High Rise)', '#059669',
-                'Commercial / Retail', '#f59e0b',
-                'Commercial / Office / Retail', '#fbbf24',
-                'Commercial / Office', '#d97706',
-                'Commercial Office Tower / Corporate Hub', '#ec4899',
-                'Industrial / Warehouse', '#ef4444',
-                'Institutional / Public Building', '#8b5cf6',
+                'Residential (Low Density)', '#facc15', // UDPFI Yellow
+                'Residential / Independent House', '#eab308', // UDPFI Yellow (darker)
+                'Apartments / Mixed-Use', '#eab308', // UDPFI Yellow
+                'Apartments (Medium Rise)', '#ca8a04', // UDPFI Yellow
+                'Apartments (High Rise)', '#ca8a04', // UDPFI Yellow
+                'Commercial / Retail', '#60a5fa', // UDPFI Blue (light)
+                'Commercial / Office / Retail', '#3b82f6', // UDPFI Blue
+                'Commercial / Office', '#2563eb', // UDPFI Blue
+                'Commercial Office Tower / Corporate Hub', '#1d4ed8', // UDPFI Blue (dark)
+                'Industrial / Warehouse', '#a855f7', // UDPFI Violet/Purple
+                'Institutional / Public Building', '#ef4444', // UDPFI Red
                 '#94a3b8'
             ],
             night: [
                 'match', ['get', 'estimated_use'],
-                'Residential (Low Density)', '#2979ff', // neon blue
-                'Residential / Independent House', '#448aff',
-                'Apartments / Mixed-Use', '#00e676', // neon green
-                'Apartments (Medium Rise)', '#69f0ae',
-                'Apartments (High Rise)', '#00c853',
-                'Commercial / Retail', '#ffd700', // neon gold
-                'Commercial / Office / Retail', '#ffea00',
-                'Commercial / Office', '#ffab00',
-                'Commercial Office Tower / Corporate Hub', '#ff007f', // neon pink
-                'Industrial / Warehouse', '#ff1744', // neon red
-                'Institutional / Public Building', '#d500f9', // neon purple
+                'Residential (Low Density)', '#ffff00', // UDPFI Neon Yellow
+                'Residential / Independent House', '#ffea00', // UDPFI Neon Yellow
+                'Apartments / Mixed-Use', '#ffd600', // UDPFI Neon Yellow
+                'Apartments (Medium Rise)', '#ffd600', // UDPFI Neon Yellow
+                'Apartments (High Rise)', '#ffd600', // UDPFI Neon Yellow
+                'Commercial / Retail', '#00e5ff', // UDPFI Neon Blue
+                'Commercial / Office / Retail', '#00b0ff', // UDPFI Neon Blue
+                'Commercial / Office', '#2979ff', // UDPFI Neon Blue
+                'Commercial Office Tower / Corporate Hub', '#3d5afe', // UDPFI Neon Blue (dark)
+                'Industrial / Warehouse', '#d500f9', // UDPFI Neon Violet/Purple
+                'Institutional / Public Building', '#ff1744', // UDPFI Neon Red
                 '#80deea'
             ]
         };
@@ -826,20 +826,27 @@
                 map.setPaintProperty('background', 'background-color', isNight ? '#000000' : '#0b0f19');
             }
 
-            // Water bodies
+            // Water bodies -> UDPFI Light Blue / Cyan
             if (map.getLayer('water')) {
-                map.setPaintProperty('water', 'fill-color', isNight ? '#000b1a' : '#182235');
+                map.setPaintProperty('water', 'fill-color', isNight ? '#00e5ff' : '#0284c7');
+                map.setPaintProperty('water', 'fill-opacity', isNight ? 0.35 : 0.6);
             }
 
-            // Land cover & parks
+            // Land cover & parks -> UDPFI Green & Dark Green
             const landLayers = ['landcover', 'park_national_park', 'park_nature_reserve', 'landuse_residential', 'landuse'];
             landLayers.forEach(id => {
                 if (map.getLayer(id)) {
-                    map.setPaintProperty(id, 'fill-color', isNight ? '#000000' : '#0e1626');
+                    if (id.startsWith('park_') || id === 'landcover') {
+                        // Green for parks, recreational zones, and forests
+                        map.setPaintProperty(id, 'fill-color', isNight ? '#00e676' : '#15803d');
+                        map.setPaintProperty(id, 'fill-opacity', isNight ? 0.15 : 0.3);
+                    } else {
+                        map.setPaintProperty(id, 'fill-color', isNight ? '#000000' : '#0e1626');
+                    }
                 }
             });
 
-            // Roads and transportation lines
+            // Roads and transportation lines -> UDPFI Grey
             layers.forEach(layer => {
                 const id = layer.id;
                 const type = layer.type;
@@ -847,10 +854,10 @@
                     if (type === 'line') {
                         if (id.endsWith('_case')) {
                             // Outlines/cases of roads
-                            map.setPaintProperty(id, 'line-color', isNight ? '#001a24' : '#1e293b');
+                            map.setPaintProperty(id, 'line-color', isNight ? '#121212' : '#1e293b');
                         } else if (id.endsWith('_fill') || id === 'road_path' || id === 'tunnel_path' || id === 'bridge_path' || id === 'rail' || id === 'rail_dash') {
-                            // Road fill lines
-                            map.setPaintProperty(id, 'line-color', isNight ? '#00364d' : '#111827');
+                            // Road fill lines -> Grey
+                            map.setPaintProperty(id, 'line-color', isNight ? '#2a2a2a' : '#3c4858');
                         }
                     }
                 }
@@ -943,11 +950,11 @@
                 `;
             } else {
                 legendTitle.innerText = 'Estimated Use Class';
-                const cRes = activeTheme === 'night' ? '#2979ff' : '#3b82f6';
-                const cApt = activeTheme === 'night' ? '#00e676' : '#10b981';
-                const cCom = activeTheme === 'night' ? '#ffea00' : '#f59e0b';
-                const cInd = activeTheme === 'night' ? '#ff1744' : '#ef4444';
-                const cIns = activeTheme === 'night' ? '#d500f9' : '#8b5cf6';
+                const cRes = activeTheme === 'night' ? '#ffff00' : '#facc15';
+                const cApt = activeTheme === 'night' ? '#ffd600' : '#eab308';
+                const cCom = activeTheme === 'night' ? '#00e5ff' : '#2563eb';
+                const cInd = activeTheme === 'night' ? '#d500f9' : '#a855f7';
+                const cIns = activeTheme === 'night' ? '#ff1744' : '#ef4444';
                 legendContainer.innerHTML = `
                     <div class="legend-item">
                         <div class="legend-color" style="background-color: ${cRes};"></div>
