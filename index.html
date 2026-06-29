@@ -721,11 +721,8 @@
         // EV Layer Toggle Logic
         evToggle.addEventListener('change', (e) => {
             const visible = e.target.checked ? 'visible' : 'none';
-            if (map.getLayer('ev-chargers-glow')) {
-                map.setLayoutProperty('ev-chargers-glow', 'visibility', visible);
-            }
-            if (map.getLayer('ev-chargers-core')) {
-                map.setLayoutProperty('ev-chargers-core', 'visibility', visible);
+            if (map.getLayer('ev-chargers-symbols')) {
+                map.setLayoutProperty('ev-chargers-symbols', 'visibility', visible);
             }
         });
 
@@ -1097,13 +1094,12 @@
                 }
                 
                 // Update EV Chargers styling directly
-                const isNight = activeTheme === 'night';
-                const chargerColor = isNight ? '#00e676' : '#10b981';
-                if (map.getLayer('ev-chargers-glow')) {
-                    map.setPaintProperty('ev-chargers-glow', 'circle-color', chargerColor);
+                const nextIconId = `ev-icon-${activeTheme}`;
+                if (!map.hasImage(nextIconId)) {
+                    map.addImage(nextIconId, createEVIcon());
                 }
-                if (map.getLayer('ev-chargers-core')) {
-                    map.setPaintProperty('ev-chargers-core', 'circle-stroke-color', chargerColor);
+                if (map.getLayer('ev-chargers-symbols')) {
+                    map.setLayoutProperty('ev-chargers-symbols', 'icon-image', nextIconId);
                 }
 
                 applyBaseThemePaint();
@@ -1116,8 +1112,7 @@
                 if (map.getSource('buildings')) map.removeSource('buildings');
                 
                 // Remove EV layers and source if they exist
-                if (map.getLayer('ev-chargers-glow')) map.removeLayer('ev-chargers-glow');
-                if (map.getLayer('ev-chargers-core')) map.removeLayer('ev-chargers-core');
+                if (map.getLayer('ev-chargers-symbols')) map.removeLayer('ev-chargers-symbols');
                 if (map.getSource('ev-chargers')) map.removeSource('ev-chargers');
                 
                 map.setStyle(styleUrl);
@@ -1337,6 +1332,45 @@
             }
         }
 
+        function createEVIcon() {
+            const size = 32;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            const color = activeTheme === 'night' ? '#00e676' : '#10b981';
+
+            // Outer glowing ring
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 6;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, 11, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Inner white core
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, 8.5, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Lightning bolt in center
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(17, 7);
+            ctx.lineTo(11, 16);
+            ctx.lineTo(15, 16);
+            ctx.lineTo(13, 25);
+            ctx.lineTo(21, 15);
+            ctx.lineTo(16, 15);
+            ctx.closePath();
+            ctx.fill();
+
+            return canvas;
+        }
+
         function addEVChargersSourceAndLayer(data) {
             if (!map.getSource('ev-chargers')) {
                 map.addSource('ev-chargers', {
@@ -1345,35 +1379,24 @@
                 });
             }
 
-            const isNight = activeTheme === 'night';
-            const visible = evToggle.checked ? 'visible' : 'none';
-
-            if (!map.getLayer('ev-chargers-glow')) {
-                map.addLayer({
-                    'id': 'ev-chargers-glow',
-                    'type': 'circle',
-                    'source': 'ev-chargers',
-                    'layout': { 'visibility': visible },
-                    'paint': {
-                        'circle-color': isNight ? '#00e676' : '#10b981',
-                        'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 8, 15, 16],
-                        'circle-opacity': 0.3,
-                        'circle-blur': 0.5
-                    }
-                });
+            const iconId = `ev-icon-${activeTheme}`;
+            if (!map.hasImage(iconId)) {
+                map.addImage(iconId, createEVIcon());
             }
 
-            if (!map.getLayer('ev-chargers-core')) {
+            const visible = evToggle.checked ? 'visible' : 'none';
+
+            if (!map.getLayer('ev-chargers-symbols')) {
                 map.addLayer({
-                    'id': 'ev-chargers-core',
-                    'type': 'circle',
+                    'id': 'ev-chargers-symbols',
+                    'type': 'symbol',
                     'source': 'ev-chargers',
-                    'layout': { 'visibility': visible },
-                    'paint': {
-                        'circle-color': '#ffffff',
-                        'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3, 15, 6],
-                        'circle-stroke-color': isNight ? '#00e676' : '#10b981',
-                        'circle-stroke-width': 2
+                    'layout': {
+                        'visibility': visible,
+                        'icon-image': iconId,
+                        'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.6, 15, 1.0],
+                        'icon-allow-overlap': true,
+                        'icon-ignore-placement': true
                     }
                 });
             }
@@ -1472,7 +1495,7 @@
             });
 
             // Hover event for EV chargers
-            map.on('mousemove', 'ev-chargers-core', (e) => {
+            map.on('mousemove', 'ev-chargers-symbols', (e) => {
                 map.getCanvas().style.cursor = 'pointer';
 
                 if (e.features.length > 0) {
@@ -1590,7 +1613,7 @@
             });
 
             // Leave event for EV chargers
-            map.on('mouseleave', 'ev-chargers-core', () => {
+            map.on('mouseleave', 'ev-chargers-symbols', () => {
                 map.getCanvas().style.cursor = '';
                 if (popup) {
                     popup.remove();
