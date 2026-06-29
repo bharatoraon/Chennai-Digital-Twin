@@ -706,6 +706,7 @@
         let selectedFloorHeight = 3.5; // default in meters
         let activeColorMode = 'height'; // 'height' or 'use'
         let activeTheme = 'dark'; // 'day', 'dark', 'night'
+        const loadedImages = new Set();
 
         // Sidebar Toggle Logic
         closeSidebarBtn.addEventListener('click', () => {
@@ -1095,8 +1096,9 @@
                 
                 // Update EV Chargers styling directly
                 const nextIconId = `ev-icon-${activeTheme}`;
-                if (!map.hasImage(nextIconId)) {
+                if (!loadedImages.has(nextIconId)) {
                     map.addImage(nextIconId, createEVIcon());
+                    loadedImages.add(nextIconId);
                 }
                 if (map.getLayer('ev-chargers-symbols')) {
                     map.setLayoutProperty('ev-chargers-symbols', 'icon-image', nextIconId);
@@ -1115,6 +1117,9 @@
                 if (map.getLayer('ev-chargers-symbols')) map.removeLayer('ev-chargers-symbols');
                 if (map.getSource('ev-chargers')) map.removeSource('ev-chargers');
                 
+                // Clear the loaded custom images cache as they are lost on style change
+                loadedImages.clear();
+
                 map.setStyle(styleUrl);
             }
         }
@@ -1380,8 +1385,9 @@
             }
 
             const iconId = `ev-icon-${activeTheme}`;
-            if (!map.hasImage(iconId)) {
+            if (!loadedImages.has(iconId)) {
                 map.addImage(iconId, createEVIcon());
+                loadedImages.add(iconId);
             }
 
             const visible = evToggle.checked ? 'visible' : 'none';
