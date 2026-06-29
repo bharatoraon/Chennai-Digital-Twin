@@ -706,7 +706,7 @@
         let selectedFloorHeight = 3.5; // default in meters
         let activeColorMode = 'height'; // 'height' or 'use'
         let activeTheme = 'dark'; // 'day', 'dark', 'night'
-        const loadedImages = new Set();
+        const evMarkers = [];
 
         // Sidebar Toggle Logic
         closeSidebarBtn.addEventListener('click', () => {
@@ -721,10 +721,10 @@
 
         // EV Layer Toggle Logic
         evToggle.addEventListener('change', (e) => {
-            const visible = e.target.checked ? 'visible' : 'none';
-            if (map.getLayer('ev-chargers-symbols')) {
-                map.setLayoutProperty('ev-chargers-symbols', 'visibility', visible);
-            }
+            const visible = e.target.checked;
+            evMarkers.forEach(m => {
+                m.getElement().style.display = visible ? 'flex' : 'none';
+            });
         });
 
         // EV Simulator Sliders Logic
@@ -1095,13 +1095,8 @@
                 }
                 
                 // Update EV Chargers styling directly
-                const nextIconId = `ev-icon-${activeTheme}`;
-                if (!loadedImages.has(nextIconId)) {
-                    map.addImage(nextIconId, createEVIcon());
-                    loadedImages.add(nextIconId);
-                }
-                if (map.getLayer('ev-chargers-symbols')) {
-                    map.setLayoutProperty('ev-chargers-symbols', 'icon-image', nextIconId);
+                if (globalEvData) {
+                    addEVChargersMarkers(globalEvData);
                 }
 
                 applyBaseThemePaint();
@@ -1113,13 +1108,6 @@
                 if (map.getLayer('buildings-3d')) map.removeLayer('buildings-3d');
                 if (map.getSource('buildings')) map.removeSource('buildings');
                 
-                // Remove EV layers and source if they exist
-                if (map.getLayer('ev-chargers-symbols')) map.removeLayer('ev-chargers-symbols');
-                if (map.getSource('ev-chargers')) map.removeSource('ev-chargers');
-                
-                // Clear the loaded custom images cache as they are lost on style change
-                loadedImages.clear();
-
                 map.setStyle(styleUrl);
             }
         }
@@ -1226,8 +1214,7 @@
                 loadingOverlay.classList.add('fade-out');
             }
             if (globalEvData) {
-                // EV Chargers data is loaded, re-add
-                addEVChargersSourceAndLayer(globalEvData);
+                addEVChargersMarkers(globalEvData);
             }
         });
 
@@ -1275,7 +1262,7 @@
                 console.log("EV Chargers loaded successfully.");
                 globalEvData = data;
                 if (map.isStyleLoaded()) {
-                    addEVChargersSourceAndLayer(data);
+                    addEVChargersMarkers(data);
                 }
             })
             .catch(error => {
@@ -1337,75 +1324,161 @@
             }
         }
 
-        function createEVIcon() {
-            const size = 32;
-            const canvas = document.createElement('canvas');
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext('2d');
+        function addEVChargersMarkers(data) {
+            // Clear existing markers
+            evMarkers.forEach(m => m.remove());
+            evMarkers.length = 0;
 
-            const color = activeTheme === 'night' ? '#00e676' : '#10b981';
+            const visible = evToggle.checked;
 
-            // Outer glowing ring
-            ctx.shadowColor = color;
-            ctx.shadowBlur = 6;
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.arc(size/2, size/2, 11, 0, 2 * Math.PI);
-            ctx.fill();
+            data.features.forEach(feature => {
+                const coords = feature.geometry.coordinates;
+                const props = feature.properties;
 
-            // Inner white core
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(size/2, size/2, 8.5, 0, 2 * Math.PI);
-            ctx.fill();
+                const el = document.createElement('div');
+                el.className = 'ev-marker';
+                el.style.width = '24px';
+                el.style.height = '24px';
+                el.style.display = visible ? 'flex' : 'none';
+                el.style.alignItems = 'center';
+                el.style.justifyContent = 'center';
+                el.style.cursor = 'pointer';
 
-            // Lightning bolt in center
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.moveTo(17, 7);
-            ctx.lineTo(11, 16);
-            ctx.lineTo(15, 16);
-            ctx.lineTo(13, 25);
-            ctx.lineTo(21, 15);
-            ctx.lineTo(16, 15);
-            ctx.closePath();
-            ctx.fill();
+                const color = activeTheme === 'night' ? '#00e676' : '#10b981';
+                el.innerHTML = `
+                    <div style="
+                        position: relative;
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 50%;
+                        background: #ffffff;
+                        border: 2px solid ${color};
+                        box-shadow: 0 0 8px ${color};
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    ">
+                        <i data-lucide="zap" style="width: 8px; height: 8px; color: ${color}; fill: ${color}; stroke-width: 3;"></i>
+                    </div>
+                `;
 
-            return canvas;
-        }
-
-        function addEVChargersSourceAndLayer(data) {
-            if (!map.getSource('ev-chargers')) {
-                map.addSource('ev-chargers', {
-                    type: 'geojson',
-                    data: data
+                const popupInstance = new maplibregl.Popup({
+                    closeButton: false,
+                    closeOnClick: false,
+                    anchor: 'bottom',
+                    offset: 12
                 });
-            }
 
-            const iconId = `ev-icon-${activeTheme}`;
-            if (!loadedImages.has(iconId)) {
-                map.addImage(iconId, createEVIcon());
-                loadedImages.add(iconId);
-            }
+                el.addEventListener('mouseenter', () => {
+                    const name = props.name || 'EV Charging Station';
+                    const cpo = props.cpoName || '-';
+                    const type = props.chargerType || '-';
+                    const app = props.appName || '-';
+                    const address = props.address || '-';
+                    const category = props.customerCategory || 'public';
+                    const isMega = props.megaChargers === true || props.megaChargers === 'true';
 
-            const visible = evToggle.checked ? 'visible' : 'none';
-
-            if (!map.getLayer('ev-chargers-symbols')) {
-                map.addLayer({
-                    'id': 'ev-chargers-symbols',
-                    'type': 'symbol',
-                    'source': 'ev-chargers',
-                    'layout': {
-                        'visibility': visible,
-                        'icon-image': iconId,
-                        'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.6, 15, 1.0],
-                        'icon-allow-overlap': true,
-                        'icon-ignore-placement': true
+                    let chargerPower = 3.3;
+                    let isDC = false;
+                    
+                    if (type.toUpperCase().includes('CCS2') || type.toUpperCase().includes('CCS-2') || type.toUpperCase().includes('DC')) {
+                        chargerPower = isMega ? 50 : 25;
+                        isDC = true;
+                    } else if (type.toUpperCase().includes('AC') || type.toUpperCase().includes('TYPE 2') || type.toUpperCase().includes('TYPE-2')) {
+                        chargerPower = 7.2;
                     }
+
+                    const curPct = parseInt(currentBatterySlider.value);
+                    const tgtPct = parseInt(targetBatterySlider.value);
+                    const capacityNeeded = activeBatteryCapacity * (tgtPct - curPct) / 100;
+                    
+                    let chargeHours = capacityNeeded / chargerPower;
+                    
+                    if (isDC && tgtPct > 80) {
+                        const fastCapacity = activeBatteryCapacity * (Math.min(80, tgtPct) - curPct) / 100;
+                        const slowCapacity = activeBatteryCapacity * (tgtPct - Math.max(80, curPct)) / 100;
+                        chargeHours = (fastCapacity > 0 ? fastCapacity / chargerPower : 0) + (slowCapacity > 0 ? slowCapacity / (chargerPower * 0.2) : 0);
+                    }
+
+                    let chargeTimeStr = '';
+                    const totalMins = Math.round(chargeHours * 60);
+                    if (totalMins < 60) {
+                        chargeTimeStr = `${totalMins} mins`;
+                    } else {
+                        const h = Math.floor(totalMins / 60);
+                        const m = totalMins % 60;
+                        chargeTimeStr = m > 0 ? `${h}h ${m}m` : `${h}h`;
+                    }
+
+                    const html = `
+                        <div class="popup-title" style="color: #10b981; border-bottom-color: rgba(16, 185, 129, 0.2); display: flex; align-items: center; gap: 6px;">
+                            <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
+                            EV Charging Station
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Name:</span>
+                            <span class="popup-value" style="font-weight:700;">${name}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Operator (CPO):</span>
+                            <span class="popup-value">${cpo}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Charger Type:</span>
+                            <span class="popup-value" style="font-weight:700; color: #10b981;">${type} (${chargerPower} kW)</span>
+                        </div>
+                        
+                        <div style="border-top: 1px dashed rgba(16,185,129,0.2); border-bottom: 1px dashed rgba(16,185,129,0.2); padding: 6px 0; margin: 6px 0; background: rgba(16,185,129,0.04);">
+                            <div class="popup-row">
+                                <span class="popup-label" style="color: #10b981; font-weight:700;">Simulator Estimate</span>
+                            </div>
+                            <div class="popup-row" style="margin-top: 2px;">
+                                <span class="popup-label">Car Model:</span>
+                                <span class="popup-value">${activeModelName} (${activeVariantName})</span>
+                            </div>
+                            <div class="popup-row">
+                                <span class="popup-label">Target Charge:</span>
+                                <span class="popup-value" style="font-weight:700;">${curPct}% → ${tgtPct}%</span>
+                            </div>
+                            <div class="popup-row">
+                                <span class="popup-label">Charge Time:</span>
+                                <span class="popup-value" style="font-weight:700; color: #10b981; font-size: 12px;"><i data-lucide="clock" style="width: 11px; height: 11px; display: inline-block; vertical-align: middle; margin-right: 2px;"></i>${chargeTimeStr}</span>
+                            </div>
+                        </div>
+
+                        <div class="popup-row">
+                            <span class="popup-label">App Access:</span>
+                            <span class="popup-value">${app}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Category:</span>
+                            <span class="popup-value" style="text-transform: capitalize;">${category}</span>
+                        </div>
+                        <div class="popup-row" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 4px; margin-top: 4px; flex-direction: column; align-items: flex-start; gap: 2px;">
+                            <span class="popup-label">Address:</span>
+                            <span class="popup-value" style="font-size: 10px; line-height: 1.2; word-break: break-word; color: var(--text-secondary);">${address}</span>
+                        </div>
+                    `;
+
+                    popupInstance.setLngLat(coords)
+                                 .setHTML(html)
+                                 .addTo(map);
+
+                    lucide.createIcons();
                 });
-            }
+
+                el.addEventListener('mouseleave', () => {
+                    popupInstance.remove();
+                });
+
+                const marker = new maplibregl.Marker({ element: el })
+                    .setLngLat(coords)
+                    .addTo(map);
+
+                evMarkers.push(marker);
+            });
+
+            lucide.createIcons();
         }
 
         // Compute Statistics and Update UI
@@ -1500,132 +1573,6 @@
                 }
             });
 
-            // Hover event for EV chargers
-            map.on('mousemove', 'ev-chargers-symbols', (e) => {
-                map.getCanvas().style.cursor = 'pointer';
-
-                if (e.features.length > 0) {
-                    const feature = e.features[0];
-                    const props = feature.properties;
-                    
-                    const name = props.name || 'EV Charging Station';
-                    const cpo = props.cpoName || '-';
-                    const type = props.chargerType || '-';
-                    const app = props.appName || '-';
-                    const address = props.address || '-';
-                    const category = props.customerCategory || 'public';
-                    const isMega = props.megaChargers === true || props.megaChargers === 'true';
-
-                    // Determine Charger Power Output (kW)
-                    let chargerPower = 3.3; // default slow AC in kW
-                    let isDC = false;
-                    
-                    if (type.toUpperCase().includes('CCS2') || type.toUpperCase().includes('CCS-2') || type.toUpperCase().includes('DC')) {
-                        chargerPower = isMega ? 50 : 25; // 50kW for mega chargers, 25kW standard DC fast
-                        isDC = true;
-                    } else if (type.toUpperCase().includes('AC') || type.toUpperCase().includes('TYPE 2') || type.toUpperCase().includes('TYPE-2')) {
-                        chargerPower = 7.2; // standard AC fast wallbox
-                    }
-
-                    // Retrieve current slider inputs
-                    const curPct = parseInt(currentBatterySlider.value);
-                    const tgtPct = parseInt(targetBatterySlider.value);
-                    const capacityNeeded = activeBatteryCapacity * (tgtPct - curPct) / 100;
-                    
-                    // Estimate charging time in hours
-                    let chargeHours = capacityNeeded / chargerPower;
-                    
-                    // DC Fast chargers taper above 80% to protect the battery
-                    if (isDC && tgtPct > 80) {
-                        const fastCapacity = activeBatteryCapacity * (Math.min(80, tgtPct) - curPct) / 100;
-                        const slowCapacity = activeBatteryCapacity * (tgtPct - Math.max(80, curPct)) / 100;
-                        chargeHours = (fastCapacity > 0 ? fastCapacity / chargerPower : 0) + (slowCapacity > 0 ? slowCapacity / (chargerPower * 0.2) : 0);
-                    }
-
-                    let chargeTimeStr = '';
-                    const totalMins = Math.round(chargeHours * 60);
-                    if (totalMins < 60) {
-                        chargeTimeStr = `${totalMins} mins`;
-                    } else {
-                        const h = Math.floor(totalMins / 60);
-                        const m = totalMins % 60;
-                        chargeTimeStr = m > 0 ? `${h}h ${m}m` : `${h}h`;
-                    }
-
-                    const html = `
-                        <div class="popup-title" style="color: #10b981; border-bottom-color: rgba(16, 185, 129, 0.2); display: flex; align-items: center; gap: 6px;">
-                            <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
-                            EV Charging Station
-                        </div>
-                        <div class="popup-row">
-                            <span class="popup-label">Name:</span>
-                            <span class="popup-value" style="font-weight:700;">${name}</span>
-                        </div>
-                        <div class="popup-row">
-                            <span class="popup-label">Operator (CPO):</span>
-                            <span class="popup-value">${cpo}</span>
-                        </div>
-                        <div class="popup-row">
-                            <span class="popup-label">Charger Type:</span>
-                            <span class="popup-value" style="font-weight:700; color: #10b981;">${type} (${chargerPower} kW)</span>
-                        </div>
-                        
-                        <div style="border-top: 1px dashed rgba(16,185,129,0.2); border-bottom: 1px dashed rgba(16,185,129,0.2); padding: 6px 0; margin: 6px 0; background: rgba(16,185,129,0.04);">
-                            <div class="popup-row">
-                                <span class="popup-label" style="color: #10b981; font-weight:700;">Simulator Estimate</span>
-                            </div>
-                            <div class="popup-row" style="margin-top: 2px;">
-                                <span class="popup-label">Car Model:</span>
-                                <span class="popup-value">${activeModelName} (${activeVariantName})</span>
-                            </div>
-                            <div class="popup-row">
-                                <span class="popup-label">Target Charge:</span>
-                                <span class="popup-value" style="font-weight:700;">${curPct}% → ${tgtPct}%</span>
-                            </div>
-                            <div class="popup-row">
-                                <span class="popup-label">Charge Time:</span>
-                                <span class="popup-value" style="font-weight:700; color: #10b981; font-size: 12px;"><i data-lucide="clock" style="width: 11px; height: 11px; display: inline-block; vertical-align: middle; margin-right: 2px;"></i>${chargeTimeStr}</span>
-                            </div>
-                        </div>
-
-                        <div class="popup-row">
-                            <span class="popup-label">App Access:</span>
-                            <span class="popup-value">${app}</span>
-                        </div>
-                        <div class="popup-row">
-                            <span class="popup-label">Category:</span>
-                            <span class="popup-value" style="text-transform: capitalize;">${category}</span>
-                        </div>
-                        <div class="popup-row" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 4px; margin-top: 4px; flex-direction: column; align-items: flex-start; gap: 2px;">
-                            <span class="popup-label">Address:</span>
-                            <span class="popup-value" style="font-size: 10px; line-height: 1.2; word-break: break-word; color: var(--text-secondary);">${address}</span>
-                        </div>
-                    `;
-
-                    if (!popup) {
-                        popup = new maplibregl.Popup({
-                            closeButton: false,
-                            closeOnClick: false,
-                            anchor: 'bottom'
-                        });
-                    }
-
-                    popup.setLngLat(e.lngLat)
-                         .setHTML(html)
-                         .addTo(map);
-
-                    lucide.createIcons();
-                }
-            });
-
-            // Leave event for EV chargers
-            map.on('mouseleave', 'ev-chargers-symbols', () => {
-                map.getCanvas().style.cursor = '';
-                if (popup) {
-                    popup.remove();
-                    popup = null;
-                }
-            });
         }
     </script>
 </body>
