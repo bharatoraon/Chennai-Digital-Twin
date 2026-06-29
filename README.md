@@ -7,8 +7,9 @@ An interactive, high-performance 3D visualization and analysis tool for building
 - **Dynamic 3D Extrusions**: Visualize building heights in 3D, styled with rich color ramps.
 - **Map Themes (Day, Dark, & Night)**: Toggle dynamically between Day Mode (Positron GL), Dark Mode (Slate-Blue GL), and Night Mode (Midnight-Black with glowing neon roads, navy water, and cyan borders) with no map flashes when switching dark themes.
 - **Estimated Floor Height Slider**: Adjust the floor height parameter dynamically (from `3.0m` to `4.4m` per floor) to recalculate floor count estimates and metropolitan statistics in real-time.
-- **UDPFI Standard Color Themes**: Toggle on the fly between **Color by Height** and **Color by Est. Use**, fully aligned with the UDPFI town planning color standards (Residential: Yellow, Commercial: Blue, Industrial: Violet, Public/Institutional: Red, Parks: Green, Water: Light Blue/Cyan, Roads: Grey).
-- **Interactive Tooltips**: Hover over any building to view its estimated use class, height in meters, floor count, footprint area, confidence score, and Plus Code.
+- **UDPFI Standard Color Themes**: Toggle on the fly between **Color by Height** and **Color by Building Use**, fully aligned with the UDPFI town planning color standards (Residential: Yellow, Commercial: Blue, Industrial: Violet, Public/Institutional: Red, Parks: Green, Water: Light Blue/Cyan, Roads: Grey).
+- **EV Charging Layer**: Toggleable map layer of filtered EV charging stations rendered as glowing emerald/neon green points with a white core, including station name, operator (CPO), charger type, app access, and address details on hover.
+- **Interactive Tooltips**: Hover over any building to view its building use class, height in meters, floor count, and footprint area.
 - **Glassmorphism Dashboard**: Live statistics summarizing total buildings, average height, average floor count, and tallest structures.
 - **Fly-To Navigation**: Quickly navigate to dense urban hubs like Chennai Central and the OMR / IT Corridor.
 
@@ -22,7 +23,10 @@ An interactive, high-performance 3D visualization and analysis tool for building
 ├── join_heights.py             # Pipeline Stage 2: Vectorized GEE height raster intersection
 ├── classify_use.py             # Pipeline Stage 3: Area & height based heuristic use classifier
 ├── filter_geojson.py           # Pipeline Stage 4: Optimized dataset filters & disk cleanup
-└── CMA.geojson                 # Chennai Metropolitan Area boundary shape (GeoJSON)
+├── filter_chargers.py          # Pipeline Stage 5: Spatial filter for India-wide EV chargers
+├── CMA.geojson                 # Chennai Metropolitan Area boundary shape (GeoJSON)
+├── cma_ev_chargers.geojson     # Filtered CMA EV charging stations GeoJSON points
+└── EV_Charger/                 # Raw EV charging station source datasets
 ```
 
 > **Note**: The large raw datasets (`cma_buildings_3d.geojson` and `cma_building_height_2022.tif`) are excluded from this repository via `.gitignore` to comply with GitHub limits. However, the optimized, compressed dataset **`cma_buildings_3d.geojson.gz`** (60 MB) is committed and served directly to the browser, allowing out-of-the-box hosting on Vercel or GitHub Pages.
