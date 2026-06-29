@@ -515,15 +515,7 @@
                 Adjust height threshold dynamically (between 3.0m and 4.4m per floor)
             </p>
             
-            <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-top: 4px;">
-                <div class="control-row">
-                    <span class="control-label"><i data-lucide="palette" style="width: 13px; height: 13px; display: inline-align; vertical-align: middle; margin-right: 4px; color: var(--accent-primary);"></i>Color Theme</span>
-                    <select id="colorModeSelect">
-                        <option value="height">Color by Height</option>
-                        <option value="use">Color by Building Use</option>
-                    </select>
-                </div>
-            </div>
+
 
             <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-top: 8px;">
                 <div class="control-row">
@@ -623,24 +615,28 @@
         <div class="panel-section">
             <div class="section-title">
                 <i data-lucide="layers" style="width: 16px; height: 16px;"></i>
-                <span id="legendTitle">Height Classification</span>
+                <span id="legendTitle">Building Use Class</span>
             </div>
             <div class="legend-list" id="legendContainer">
                 <div class="legend-item">
-                    <div class="legend-color" style="background-color: var(--accent-height-1);"></div>
-                    <span>Single-story / Low (< 5m)</span>
+                    <div class="legend-color" style="background-color: #facc15;"></div>
+                    <span>Residential (Low Density / Houses)</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background-color: var(--accent-height-2);"></div>
-                    <span>Medium Rise (5m - 15m)</span>
+                    <div class="legend-color" style="background-color: #eab308;"></div>
+                    <span>Apartments (Medium / High Rise)</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background-color: var(--accent-height-3);"></div>
-                    <span>High Rise (15m - 30m)</span>
+                    <div class="legend-color" style="background-color: #2563eb;"></div>
+                    <span>Commercial / Office / Retail</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background-color: var(--accent-height-4);"></div>
-                    <span>Skyline Tower (> 30m)</span>
+                    <div class="legend-color" style="background-color: #a855f7;"></div>
+                    <span>Industrial / Warehouses</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ef4444;"></div>
+                    <span>Institutional / Public Buildings</span>
                 </div>
             </div>
         </div>
@@ -688,7 +684,7 @@
         const closeSidebarBtn = document.getElementById('closeSidebarBtn');
         const floorHeightSlider = document.getElementById('floorHeightSlider');
         const floorHeightLabel = document.getElementById('floorHeightLabel');
-        const colorModeSelect = document.getElementById('colorModeSelect');
+
         const themeSelect = document.getElementById('themeSelect');
         const legendTitle = document.getElementById('legendTitle');
         const legendContainer = document.getElementById('legendContainer');
@@ -704,7 +700,7 @@
         // Global variables for calculations
         let globalGeojsonData = null;
         let selectedFloorHeight = 3.5; // default in meters
-        let activeColorMode = 'height'; // 'height' or 'use'
+
         let activeTheme = 'dark'; // 'day', 'dark', 'night'
         const evMarkers = [];
 
@@ -894,32 +890,7 @@
             }
         };
 
-        const heightPaintProperties = {
-            day: [
-                'interpolate', ['linear'], ['get', 'h'],
-                0, '#eff6ff',
-                3, '#3b82f6',
-                10, '#10b981',
-                20, '#f59e0b',
-                40, '#ef4444'
-            ],
-            dark: [
-                'interpolate', ['linear'], ['get', 'h'],
-                0, '#1e1b4b',   // deep indigo
-                3, '#3b82f6',   // low: blue
-                10, '#10b981',  // medium: emerald
-                20, '#f59e0b',  // high: amber
-                40, '#ef4444'   // skyscraper: red
-            ],
-            night: [
-                'interpolate', ['linear'], ['get', 'h'],
-                0, '#020617',
-                3, '#2979ff', // neon blue
-                10, '#00e676', // neon green
-                20, '#ffea00', // neon yellow
-                40, '#ff1744'  // neon red
-            ]
-        };
+
 
         const usePaintProperties = {
             day: [
@@ -976,18 +947,8 @@
         };
 
         function getActiveExtrusionColorPaint() {
-            if (activeColorMode === 'height') {
-                return heightPaintProperties[activeTheme];
-            } else {
-                return usePaintProperties[activeTheme];
-            }
+            return usePaintProperties[activeTheme];
         }
-
-        // Color Mode Change Listener
-        colorModeSelect.addEventListener('change', (e) => {
-            activeColorMode = e.target.value;
-            updateVisualizationTheme();
-        });
 
         // Theme Style Change Listener
         themeSelect.addEventListener('change', (e) => {
@@ -1117,32 +1078,7 @@
 
             map.setPaintProperty('buildings-3d', 'fill-extrusion-color', getActiveExtrusionColorPaint());
 
-            if (activeColorMode === 'height') {
-                legendTitle.innerText = 'Height Classification';
-                const c1 = activeTheme === 'night' ? '#2979ff' : '#3b82f6';
-                const c2 = activeTheme === 'night' ? '#00e676' : '#10b981';
-                const c3 = activeTheme === 'night' ? '#ffea00' : '#f59e0b';
-                const c4 = activeTheme === 'night' ? '#ff1744' : '#ef4444';
-                legendContainer.innerHTML = `
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: ${c1};"></div>
-                        <span>Single-story / Low (< 5m)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: ${c2};"></div>
-                        <span>Medium Rise (5m - 15m)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: ${c3};"></div>
-                        <span>High Rise (15m - 30m)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: ${c4};"></div>
-                        <span>Skyline Tower (> 30m)</span>
-                    </div>
-                `;
-            } else {
-                legendTitle.innerText = 'Building Use Class';
+            legendTitle.innerText = 'Building Use Class';
                 const cRes = activeTheme === 'night' ? '#ffff00' : '#facc15';
                 const cApt = activeTheme === 'night' ? '#ffd600' : '#eab308';
                 const cCom = activeTheme === 'night' ? '#00e5ff' : '#2563eb';
@@ -1170,7 +1106,6 @@
                         <span>Institutional / Public Buildings</span>
                     </div>
                 `;
-            }
         }
 
         // Initialize Maplibre GL Map
