@@ -520,7 +520,7 @@
                     <span class="control-label"><i data-lucide="palette" style="width: 13px; height: 13px; display: inline-align; vertical-align: middle; margin-right: 4px; color: var(--accent-primary);"></i>Color Theme</span>
                     <select id="colorModeSelect">
                         <option value="height">Color by Height</option>
-                        <option value="use">Color by Est. Use</option>
+                        <option value="use">Color by Building Use</option>
                     </select>
                 </div>
             </div>
@@ -949,7 +949,7 @@
                     </div>
                 `;
             } else {
-                legendTitle.innerText = 'Estimated Use Class';
+                legendTitle.innerText = 'Building Use Class';
                 const cRes = activeTheme === 'night' ? '#ffff00' : '#facc15';
                 const cApt = activeTheme === 'night' ? '#ffd600' : '#eab308';
                 const cCom = activeTheme === 'night' ? '#00e5ff' : '#2563eb';
@@ -1135,14 +1135,12 @@
                     // Dynamic floor count based on current selected floor height slider
                     const floors = Math.max(1, Math.round(height / selectedFloorHeight));
                     const area = props.area ? Math.round(props.area) : '-';
-                    const confidence = props.confidence ? (props.confidence * 100).toFixed(0) + '%' : '-';
-                    const plusCode = props.plus_code || '-';
                     const estimatedUse = props.estimated_use || 'Unknown / General';
 
                     const html = `
                         <div class="popup-title">Building Details</div>
                         <div class="popup-row">
-                            <span class="popup-label">Estimated Use:</span>
+                            <span class="popup-label">Building Use:</span>
                             <span class="popup-value" style="font-weight:700; color:var(--accent-primary);">${estimatedUse}</span>
                         </div>
                         <div class="popup-row">
@@ -1156,14 +1154,6 @@
                         <div class="popup-row">
                             <span class="popup-label">Footprint Area:</span>
                             <span class="popup-value">${area} m²</span>
-                        </div>
-                        <div class="popup-row">
-                            <span class="popup-label">Model Confidence:</span>
-                            <span class="popup-value">${confidence}</span>
-                        </div>
-                        <div class="popup-row">
-                            <span class="popup-label">Plus Code:</span>
-                            <span class="popup-value" style="font-family: monospace;">${plusCode}</span>
                         </div>
                     `;
 
