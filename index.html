@@ -547,6 +547,52 @@
             </div>
         </div>
 
+        <!-- Tata EV Simulator Panel -->
+        <div class="panel-section">
+            <div class="section-title" style="color: #10b981;">
+                <i data-lucide="car" style="width: 16px; height: 16px;"></i>
+                Tata EV Simulator
+            </div>
+            <p class="section-desc">
+                Select your Tata EV model to estimate charging times at each station.
+            </p>
+            
+            <div class="control-row">
+                <span class="control-label">EV Model</span>
+                <select id="evModelSelect" style="max-width: 130px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+            <div class="control-row" style="margin-top: 8px;">
+                <span class="control-label">Variant</span>
+                <select id="evVariantSelect" style="max-width: 130px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+
+            <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-top: 12px;">
+                <div class="control-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                        <span class="control-label">Current Charge: <span id="currentBatteryLabel" style="font-weight: 700; color: #10b981;">20%</span></span>
+                    </div>
+                    <input type="range" id="currentBatterySlider" min="0" max="95" value="20" step="5" style="width: 100%; accent-color: #10b981; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1); cursor: pointer;">
+                </div>
+            </div>
+
+            <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-top: 8px;">
+                <div class="control-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                        <span class="control-label">Target Charge: <span id="targetBatteryLabel" style="font-weight: 700; color: #10b981;">80%</span></span>
+                    </div>
+                    <input type="range" id="targetBatterySlider" min="5" max="100" value="80" step="5" style="width: 100%; accent-color: #10b981; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1); cursor: pointer;">
+                </div>
+            </div>
+
+            <div id="evModelSpecs" style="margin-top: 12px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 8px;">
+                <!-- Specs populated dynamically -->
+            </div>
+        </div>
+
         <!-- Statistics Panel -->
         <div class="panel-section">
             <div class="section-title">
@@ -648,6 +694,12 @@
         const legendContainer = document.getElementById('legendContainer');
         const themeIcon = document.getElementById('themeIcon');
         const evToggle = document.getElementById('evToggle');
+        const evModelSelect = document.getElementById('evModelSelect');
+        const evVariantSelect = document.getElementById('evVariantSelect');
+        const currentBatterySlider = document.getElementById('currentBatterySlider');
+        const targetBatterySlider = document.getElementById('targetBatterySlider');
+        const currentBatteryLabel = document.getElementById('currentBatteryLabel');
+        const targetBatteryLabel = document.getElementById('targetBatteryLabel');
 
         // Global variables for calculations
         let globalGeojsonData = null;
@@ -676,6 +728,121 @@
                 map.setLayoutProperty('ev-chargers-core', 'visibility', visible);
             }
         });
+
+        // EV Simulator Sliders Logic
+        currentBatterySlider.addEventListener('input', (e) => {
+            let val = parseInt(e.target.value);
+            let targetVal = parseInt(targetBatterySlider.value);
+            if (val >= targetVal) {
+                targetBatterySlider.value = val + 5;
+                targetBatteryLabel.innerText = `${val + 5}%`;
+            }
+            currentBatteryLabel.innerText = `${val}%`;
+        });
+
+        targetBatterySlider.addEventListener('input', (e) => {
+            let val = parseInt(e.target.value);
+            let currentVal = parseInt(currentBatterySlider.value);
+            if (val <= currentVal) {
+                currentBatterySlider.value = val - 5;
+                currentBatteryLabel.innerText = `${val - 5}%`;
+            }
+            targetBatteryLabel.innerText = `${val}%`;
+        });
+
+        // Tata EV Models Data Integration
+        let activeBatteryCapacity = 30; // default in kWh
+        let activeVariantRange = 315; // default in km
+        let activeModelUrl = '';
+        let activeModelName = '';
+        let activeVariantName = '';
+
+        function populateEVModelsDropdown(models) {
+            evModelSelect.innerHTML = '';
+            
+            models.forEach(model => {
+                const opt = document.createElement('option');
+                opt.value = model.id;
+                opt.innerText = model.name;
+                evModelSelect.appendChild(opt);
+            });
+
+            // Set up change listener
+            evModelSelect.addEventListener('change', () => {
+                const selectedModelId = parseInt(evModelSelect.value);
+                const selectedModel = models.find(m => m.id === selectedModelId);
+                populateVariantsDropdown(selectedModel);
+            });
+
+            // Trigger initial population
+            if (models.length > 0) {
+                populateVariantsDropdown(models[0]);
+            }
+        }
+
+        function populateVariantsDropdown(model) {
+            evVariantSelect.innerHTML = '';
+            
+            model.variants.forEach(variant => {
+                const opt = document.createElement('option');
+                opt.value = variant.id;
+                opt.innerText = `${variant.name} (${variant.range} km)`;
+                evVariantSelect.appendChild(opt);
+            });
+
+            evVariantSelect.addEventListener('change', updateModelSpecs);
+            updateModelSpecs();
+        }
+
+        function updateModelSpecs() {
+            if (!globalModelsData) return;
+            
+            const modelId = parseInt(evModelSelect.value);
+            const variantId = parseInt(evVariantSelect.value);
+            
+            const model = globalModelsData.find(m => m.id === modelId);
+            if (!model) return;
+            
+            const variant = model.variants.find(v => v.id === variantId);
+            if (!variant) return;
+
+            activeModelName = model.name;
+            activeVariantName = variant.name;
+            activeVariantRange = variant.range;
+            activeModelUrl = model.url || '#';
+            
+            // Map battery capacity (kWh)
+            if (model.name.toLowerCase().includes('harrier')) {
+                activeBatteryCapacity = variant.name.includes('75') ? 80 : 60;
+            } else if (model.name.toLowerCase().includes('curvv')) {
+                activeBatteryCapacity = variant.name.includes('55') ? 55 : 45;
+            } else if (model.name.toLowerCase().includes('nexon')) {
+                activeBatteryCapacity = variant.name.includes('LR') ? 40.5 : 30;
+            } else if (model.name.toLowerCase().includes('punch')) {
+                activeBatteryCapacity = variant.name.includes('40') ? 35 : 25;
+            } else if (model.name.toLowerCase().includes('tiago')) {
+                activeBatteryCapacity = variant.name.includes('LR') ? 24 : 19.2;
+            } else if (model.name.toLowerCase().includes('tigor')) {
+                activeBatteryCapacity = 26;
+            } else {
+                activeBatteryCapacity = Math.round(variant.range / 8);
+            }
+
+            const specsDiv = document.getElementById('evModelSpecs');
+            specsDiv.innerHTML = `
+                <div style="flex: 1;">
+                    <div style="font-size: 11px; font-weight: 700; color: #fff;">${model.name} - ${variant.name}</div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">
+                        Range: <span style="color: #10b981; font-weight: 700;">${variant.range} km</span> | 
+                        Est. Battery: <span style="color: #10b981; font-weight: 700;">${activeBatteryCapacity} kWh</span>
+                    </div>
+                </div>
+                <a href="${model.url}" target="_blank" style="font-size: 9px; padding: 4px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); text-decoration: none; display: flex; align-items: center; gap: 2px; white-space: nowrap;">
+                    Specs <i data-lucide="external-link" style="width: 9px; height: 9px;"></i>
+                </a>
+            `;
+            lucide.createIcons();
+        }
 
         // Slider Change Logic
         floorHeightSlider.addEventListener('input', (e) => {
@@ -1115,6 +1282,25 @@
                 console.error("Error loading EV chargers:", error);
             });
 
+        // Load Tata EV Models on startup
+        let globalModelsData = null;
+        console.log("Loading Tata EV Models on startup...");
+        fetch('EV_Charger/tata_ev_models.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Data file tata_ev_models.json not found.');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Tata EV Models loaded successfully.");
+                globalModelsData = data;
+                populateEVModelsDropdown(data);
+            })
+            .catch(error => {
+                console.error("Error loading Tata EV models:", error);
+            });
+
         let interactionsSetup = false;
         function addBuildingsSourceAndLayer(data) {
             if (!map.getSource('buildings')) {
@@ -1299,6 +1485,43 @@
                     const app = props.appName || '-';
                     const address = props.address || '-';
                     const category = props.customerCategory || 'public';
+                    const isMega = props.megaChargers === true || props.megaChargers === 'true';
+
+                    // Determine Charger Power Output (kW)
+                    let chargerPower = 3.3; // default slow AC in kW
+                    let isDC = false;
+                    
+                    if (type.toUpperCase().includes('CCS2') || type.toUpperCase().includes('CCS-2') || type.toUpperCase().includes('DC')) {
+                        chargerPower = isMega ? 50 : 25; // 50kW for mega chargers, 25kW standard DC fast
+                        isDC = true;
+                    } else if (type.toUpperCase().includes('AC') || type.toUpperCase().includes('TYPE 2') || type.toUpperCase().includes('TYPE-2')) {
+                        chargerPower = 7.2; // standard AC fast wallbox
+                    }
+
+                    // Retrieve current slider inputs
+                    const curPct = parseInt(currentBatterySlider.value);
+                    const tgtPct = parseInt(targetBatterySlider.value);
+                    const capacityNeeded = activeBatteryCapacity * (tgtPct - curPct) / 100;
+                    
+                    // Estimate charging time in hours
+                    let chargeHours = capacityNeeded / chargerPower;
+                    
+                    // DC Fast chargers taper above 80% to protect the battery
+                    if (isDC && tgtPct > 80) {
+                        const fastCapacity = activeBatteryCapacity * (Math.min(80, tgtPct) - curPct) / 100;
+                        const slowCapacity = activeBatteryCapacity * (tgtPct - Math.max(80, curPct)) / 100;
+                        chargeHours = (fastCapacity > 0 ? fastCapacity / chargerPower : 0) + (slowCapacity > 0 ? slowCapacity / (chargerPower * 0.2) : 0);
+                    }
+
+                    let chargeTimeStr = '';
+                    const totalMins = Math.round(chargeHours * 60);
+                    if (totalMins < 60) {
+                        chargeTimeStr = `${totalMins} mins`;
+                    } else {
+                        const h = Math.floor(totalMins / 60);
+                        const m = totalMins % 60;
+                        chargeTimeStr = m > 0 ? `${h}h ${m}m` : `${h}h`;
+                    }
 
                     const html = `
                         <div class="popup-title" style="color: #10b981; border-bottom-color: rgba(16, 185, 129, 0.2); display: flex; align-items: center; gap: 6px;">
@@ -1315,8 +1538,27 @@
                         </div>
                         <div class="popup-row">
                             <span class="popup-label">Charger Type:</span>
-                            <span class="popup-value" style="font-weight:700; color: #10b981;">${type}</span>
+                            <span class="popup-value" style="font-weight:700; color: #10b981;">${type} (${chargerPower} kW)</span>
                         </div>
+                        
+                        <div style="border-top: 1px dashed rgba(16,185,129,0.2); border-bottom: 1px dashed rgba(16,185,129,0.2); padding: 6px 0; margin: 6px 0; background: rgba(16,185,129,0.04);">
+                            <div class="popup-row">
+                                <span class="popup-label" style="color: #10b981; font-weight:700;">Simulator Estimate</span>
+                            </div>
+                            <div class="popup-row" style="margin-top: 2px;">
+                                <span class="popup-label">Car Model:</span>
+                                <span class="popup-value">${activeModelName} (${activeVariantName})</span>
+                            </div>
+                            <div class="popup-row">
+                                <span class="popup-label">Target Charge:</span>
+                                <span class="popup-value" style="font-weight:700;">${curPct}% → ${tgtPct}%</span>
+                            </div>
+                            <div class="popup-row">
+                                <span class="popup-label">Charge Time:</span>
+                                <span class="popup-value" style="font-weight:700; color: #10b981; font-size: 12px;"><i data-lucide="clock" style="width: 11px; height: 11px; display: inline-block; vertical-align: middle; margin-right: 2px;"></i>${chargeTimeStr}</span>
+                            </div>
+                        </div>
+
                         <div class="popup-row">
                             <span class="popup-label">App Access:</span>
                             <span class="popup-value">${app}</span>
