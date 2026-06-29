@@ -535,6 +535,16 @@
                     </select>
                 </div>
             </div>
+
+            <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-top: 8px;">
+                <div class="control-row">
+                    <span class="control-label"><i data-lucide="zap" style="width: 13px; height: 13px; display: inline-align; vertical-align: middle; margin-right: 4px; color: #10b981;"></i>EV Charging Layer</span>
+                    <label style="display: flex; align-items: center; cursor: pointer; gap: 8px;">
+                        <input type="checkbox" id="evToggle" checked style="cursor: pointer; width: 16px; height: 16px; accent-color: #10b981;">
+                        <span style="font-size: 11px; color: var(--text-secondary);">Visible</span>
+                    </label>
+                </div>
+            </div>
         </div>
 
         <!-- Statistics Panel -->
@@ -637,6 +647,7 @@
         const legendTitle = document.getElementById('legendTitle');
         const legendContainer = document.getElementById('legendContainer');
         const themeIcon = document.getElementById('themeIcon');
+        const evToggle = document.getElementById('evToggle');
 
         // Global variables for calculations
         let globalGeojsonData = null;
@@ -653,6 +664,17 @@
         toggleSidebarBtn.addEventListener('click', () => {
             sidebar.classList.remove('collapsed');
             toggleSidebarBtn.classList.remove('visible');
+        });
+
+        // EV Layer Toggle Logic
+        evToggle.addEventListener('change', (e) => {
+            const visible = e.target.checked ? 'visible' : 'none';
+            if (map.getLayer('ev-chargers-glow')) {
+                map.setLayoutProperty('ev-chargers-glow', 'visibility', visible);
+            }
+            if (map.getLayer('ev-chargers-core')) {
+                map.setLayoutProperty('ev-chargers-core', 'visibility', visible);
+            }
         });
 
         // Slider Change Logic
@@ -906,6 +928,17 @@
                     map.setPaintProperty('buildings-3d', 'fill-extrusion-color', getActiveExtrusionColorPaint());
                     map.setPaintProperty('buildings-3d', 'fill-extrusion-opacity', activeTheme === 'night' ? 0.95 : 0.85);
                 }
+                
+                // Update EV Chargers styling directly
+                const isNight = activeTheme === 'night';
+                const chargerColor = isNight ? '#00e676' : '#10b981';
+                if (map.getLayer('ev-chargers-glow')) {
+                    map.setPaintProperty('ev-chargers-glow', 'circle-color', chargerColor);
+                }
+                if (map.getLayer('ev-chargers-core')) {
+                    map.setPaintProperty('ev-chargers-core', 'circle-stroke-color', chargerColor);
+                }
+
                 applyBaseThemePaint();
                 updateVisualizationTheme();
             } else {
@@ -914,6 +947,11 @@
                 
                 if (map.getLayer('buildings-3d')) map.removeLayer('buildings-3d');
                 if (map.getSource('buildings')) map.removeSource('buildings');
+                
+                // Remove EV layers and source if they exist
+                if (map.getLayer('ev-chargers-glow')) map.removeLayer('ev-chargers-glow');
+                if (map.getLayer('ev-chargers-core')) map.removeLayer('ev-chargers-core');
+                if (map.getSource('ev-chargers')) map.removeSource('ev-chargers');
                 
                 map.setStyle(styleUrl);
             }
@@ -1020,6 +1058,10 @@
                 addBuildingsSourceAndLayer(globalGeojsonData);
                 loadingOverlay.classList.add('fade-out');
             }
+            if (globalEvData) {
+                // EV Chargers data is loaded, re-add
+                addEVChargersSourceAndLayer(globalEvData);
+            }
         });
 
         // We load the data ONCE on startup
@@ -1050,6 +1092,27 @@
                 console.error("Error loading building data:", error);
                 alert("Building data 'cma_buildings_3d.geojson' not found. Please ensure you run data generation scripts first!");
                 loadingOverlay.classList.add('fade-out');
+            });
+
+        // Load EV Chargers data on startup
+        let globalEvData = null;
+        console.log("Loading EV Chargers data on startup...");
+        fetch('cma_ev_chargers.geojson')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Data file cma_ev_chargers.geojson not found.');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("EV Chargers loaded successfully.");
+                globalEvData = data;
+                if (map.isStyleLoaded()) {
+                    addEVChargersSourceAndLayer(data);
+                }
+            })
+            .catch(error => {
+                console.error("Error loading EV chargers:", error);
             });
 
         let interactionsSetup = false;
@@ -1085,6 +1148,48 @@
             if (!interactionsSetup) {
                 setupInteractions();
                 interactionsSetup = true;
+            }
+        }
+
+        function addEVChargersSourceAndLayer(data) {
+            if (!map.getSource('ev-chargers')) {
+                map.addSource('ev-chargers', {
+                    type: 'geojson',
+                    data: data
+                });
+            }
+
+            const isNight = activeTheme === 'night';
+            const visible = evToggle.checked ? 'visible' : 'none';
+
+            if (!map.getLayer('ev-chargers-glow')) {
+                map.addLayer({
+                    'id': 'ev-chargers-glow',
+                    'type': 'circle',
+                    'source': 'ev-chargers',
+                    'layout': { 'visibility': visible },
+                    'paint': {
+                        'circle-color': isNight ? '#00e676' : '#10b981',
+                        'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 8, 15, 16],
+                        'circle-opacity': 0.3,
+                        'circle-blur': 0.5
+                    }
+                });
+            }
+
+            if (!map.getLayer('ev-chargers-core')) {
+                map.addLayer({
+                    'id': 'ev-chargers-core',
+                    'type': 'circle',
+                    'source': 'ev-chargers',
+                    'layout': { 'visibility': visible },
+                    'paint': {
+                        'circle-color': '#ffffff',
+                        'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3, 15, 6],
+                        'circle-stroke-color': isNight ? '#00e676' : '#10b981',
+                        'circle-stroke-width': 2
+                    }
+                });
             }
         }
 
@@ -1173,6 +1278,77 @@
 
             // Leave event
             map.on('mouseleave', 'buildings-3d', () => {
+                map.getCanvas().style.cursor = '';
+                if (popup) {
+                    popup.remove();
+                    popup = null;
+                }
+            });
+
+            // Hover event for EV chargers
+            map.on('mousemove', 'ev-chargers-core', (e) => {
+                map.getCanvas().style.cursor = 'pointer';
+
+                if (e.features.length > 0) {
+                    const feature = e.features[0];
+                    const props = feature.properties;
+                    
+                    const name = props.name || 'EV Charging Station';
+                    const cpo = props.cpoName || '-';
+                    const type = props.chargerType || '-';
+                    const app = props.appName || '-';
+                    const address = props.address || '-';
+                    const category = props.customerCategory || 'public';
+
+                    const html = `
+                        <div class="popup-title" style="color: #10b981; border-bottom-color: rgba(16, 185, 129, 0.2); display: flex; align-items: center; gap: 6px;">
+                            <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
+                            EV Charging Station
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Name:</span>
+                            <span class="popup-value" style="font-weight:700;">${name}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Operator (CPO):</span>
+                            <span class="popup-value">${cpo}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Charger Type:</span>
+                            <span class="popup-value" style="font-weight:700; color: #10b981;">${type}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">App Access:</span>
+                            <span class="popup-value">${app}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Category:</span>
+                            <span class="popup-value" style="text-transform: capitalize;">${category}</span>
+                        </div>
+                        <div class="popup-row" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 4px; margin-top: 4px; flex-direction: column; align-items: flex-start; gap: 2px;">
+                            <span class="popup-label">Address:</span>
+                            <span class="popup-value" style="font-size: 10px; line-height: 1.2; word-break: break-word; color: var(--text-secondary);">${address}</span>
+                        </div>
+                    `;
+
+                    if (!popup) {
+                        popup = new maplibregl.Popup({
+                            closeButton: false,
+                            closeOnClick: false,
+                            anchor: 'bottom'
+                        });
+                    }
+
+                    popup.setLngLat(e.lngLat)
+                         .setHTML(html)
+                         .addTo(map);
+
+                    lucide.createIcons();
+                }
+            });
+
+            // Leave event for EV chargers
+            map.on('mouseleave', 'ev-chargers-core', () => {
                 map.getCanvas().style.cursor = '';
                 if (popup) {
                     popup.remove();

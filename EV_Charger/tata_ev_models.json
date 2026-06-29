@@ -1,0 +1,265 @@
+[
+  {
+    "id": 6,
+    "name": "Harrier.ev",
+    "url": "https://ev.tatamotors.com/harrier/ev/overview.html",
+    "image": "/images/models/harrier.png",
+    "variants": [
+      {
+        "id": 1,
+        "name": "Adventure 65",
+        "range": 538
+      },
+      {
+        "id": 2,
+        "name": "Adventure 65 ACFC",
+        "range": 538
+      },
+      {
+        "id": 3,
+        "name": "Adventure S 65",
+        "range": 538
+      },
+      {
+        "id": 4,
+        "name": "Adventure S 65 ACFC",
+        "range": 538
+      },
+      {
+        "id": 5,
+        "name": "Fearless+ 65",
+        "range": 538
+      },
+      {
+        "id": 6,
+        "name": "Fearless+ 65 ACFC",
+        "range": 538
+      },
+      {
+        "id": 7,
+        "name": "Fearless+ 75",
+        "range": 627
+      },
+      {
+        "id": 8,
+        "name": "Fearless+ 75 ACFC",
+        "range": 627
+      },
+      {
+        "id": 9,
+        "name": "Empowered 75",
+        "range": 627
+      },
+      {
+        "id": 10,
+        "name": "Empowered 75 ACFC",
+        "range": 627
+      },
+      {
+        "id": 11,
+        "name": "Empowered AWD 75",
+        "range": 622
+      },
+      {
+        "id": 12,
+        "name": "Empowered AWD 75 ACFC",
+        "range": 622
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "name": "Curvv.ev",
+    "url": "https://ev.tatamotors.com/curvv/ev.html",
+    "image": "/images/models/curvv.png",
+    "variants": [
+      {
+        "id": 1,
+        "name": "Creative 45",
+        "range": 430
+      },
+      {
+        "id": 2,
+        "name": "Accomplished 45",
+        "range": 430
+      },
+      {
+        "id": 3,
+        "name": "Accomplished + S 45",
+        "range": 430
+      },
+      {
+        "id": 4,
+        "name": "Accomplished 55",
+        "range": 502
+      },
+      {
+        "id": 5,
+        "name": "Accomplished+ S 55",
+        "range": 502
+      },
+      {
+        "id": 6,
+        "name": "Empowered+ 55",
+        "range": 502
+      },
+      {
+        "id": 7,
+        "name": "Empowered+ A 55",
+        "range": 502
+      }
+    ]
+  },
+  {
+    "id": 1,
+    "name": "Nexon.ev",
+    "image": "/images/models/nexon.png",
+    "url": "https://ev.tatamotors.com/nexon/ev.html",
+    "variants": [
+      {
+        "id": 1,
+        "name": "Empowered + LR #Dark",
+        "range": 465
+      },
+      {
+        "id": 2,
+        "name": "Empowered + LR",
+        "range": 465
+      },
+      {
+        "id": 3,
+        "name": "Empowered MR",
+        "range": 325
+      },
+      {
+        "id": 4,
+        "name": "Fearless + S LR",
+        "range": 465
+      },
+      {
+        "id": 5,
+        "name": "Fearless + LR",
+        "range": 465
+      },
+      {
+        "id": 6,
+        "name": "Fearless + S MR",
+        "range": 325
+      },
+      {
+        "id": 7,
+        "name": "Fearless + MR",
+        "range": 325
+      },
+      {
+        "id": 8,
+        "name": "Fearless MR",
+        "range": 325
+      },
+      {
+        "id": 9,
+        "name": "Creative + MR",
+        "range": 325
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Tigor.ev",
+    "url": "https://ev.tatamotors.com/tigor/ev.html",
+    "image": "/images/models/tigor.png",
+    "variants": [
+      {
+        "id": 1,
+        "name": "XZ+Lux",
+        "range": 315
+      },
+      {
+        "id": 2,
+        "name": "XZ+",
+        "range": 315
+      },
+      {
+        "id": 3,
+        "name": "XT",
+        "range": 315
+      },
+      {
+        "id": 4,
+        "name": "XE",
+        "range": 315
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Tiago.ev",
+    "url": "https://ev.tatamotors.com/tiago/ev.html",
+    "image": "/images/models/tiago.png",
+    "variants": [
+      {
+        "id": 1,
+        "name": "XZ+ Tech Lux LR",
+        "range": 315
+      },
+      {
+        "id": 2,
+        "name": "XZ+ LR",
+        "range": 315
+      },
+      {
+        "id": 3,
+        "name": "XT LR",
+        "range": 315
+      },
+      {
+        "id": 4,
+        "name": "XT MR",
+        "range": 250
+      },
+      {
+        "id": 5,
+        "name": "XE MR",
+        "range": 250
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "name": "Punch.ev",
+    "url": "https://ev.tatamotors.com/punch/ev.html",
+    "image": "/images/models/punch.png",
+    "variants": [
+      {
+        "id": 1,
+        "name": "Smart 30",
+        "range": 375
+      },
+      {
+        "id": 2,
+        "name": "Smart+ 30",
+        "range": 375
+      },
+      {
+        "id": 3,
+        "name": "Smart+ 40",
+        "range": 468
+      },
+      {
+        "id": 4,
+        "name": "Adventure 40",
+        "range": 468
+      },
+      {
+        "id": 5,
+        "name": "Empowered 40",
+        "range": 468
+      },
+      {
+        "id": 6,
+        "name": "Empowered+ 40",
+        "range": 468
+      }
+    ]
+  }
+]
