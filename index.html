@@ -923,48 +923,48 @@
 
         const usePaintProperties = {
             day: [
-                'match', ['get', 'estimated_use'],
-                'Residential (Low Density)', '#facc15', // UDPFI Yellow
-                'Residential / Independent House', '#eab308', // UDPFI Yellow (darker)
-                'Apartments / Mixed-Use', '#eab308', // UDPFI Yellow
-                'Apartments (Medium Rise)', '#ca8a04', // UDPFI Yellow
-                'Apartments (High Rise)', '#ca8a04', // UDPFI Yellow
-                'Commercial / Retail', '#60a5fa', // UDPFI Blue (light)
-                'Commercial / Office / Retail', '#3b82f6', // UDPFI Blue
-                'Commercial / Office', '#2563eb', // UDPFI Blue
-                'Commercial Office Tower / Corporate Hub', '#1d4ed8', // UDPFI Blue (dark)
-                'Industrial / Warehouse', '#a855f7', // UDPFI Violet/Purple
-                'Institutional / Public Building', '#ef4444', // UDPFI Red
+                'match', ['get', 'u'],
+                'RL', '#facc15', // UDPFI Yellow
+                'RI', '#eab308', // UDPFI Yellow (darker)
+                'AM', '#eab308', // UDPFI Yellow
+                'AMM', '#ca8a04', // UDPFI Yellow
+                'AMH', '#ca8a04', // UDPFI Yellow
+                'CR', '#60a5fa', // UDPFI Blue (light)
+                'COR', '#3b82f6', // UDPFI Blue
+                'CO', '#2563eb', // UDPFI Blue
+                'COT', '#1d4ed8', // UDPFI Blue (dark)
+                'IW', '#a855f7', // UDPFI Violet/Purple
+                'IP', '#ef4444', // UDPFI Red
                 '#64748b'
             ],
             dark: [
-                'match', ['get', 'estimated_use'],
-                'Residential (Low Density)', '#facc15', // UDPFI Yellow
-                'Residential / Independent House', '#eab308', // UDPFI Yellow (darker)
-                'Apartments / Mixed-Use', '#eab308', // UDPFI Yellow
-                'Apartments (Medium Rise)', '#ca8a04', // UDPFI Yellow
-                'Apartments (High Rise)', '#ca8a04', // UDPFI Yellow
-                'Commercial / Retail', '#60a5fa', // UDPFI Blue (light)
-                'Commercial / Office / Retail', '#3b82f6', // UDPFI Blue
-                'Commercial / Office', '#2563eb', // UDPFI Blue
-                'Commercial Office Tower / Corporate Hub', '#1d4ed8', // UDPFI Blue (dark)
-                'Industrial / Warehouse', '#a855f7', // UDPFI Violet/Purple
-                'Institutional / Public Building', '#ef4444', // UDPFI Red
+                'match', ['get', 'u'],
+                'RL', '#facc15', // UDPFI Yellow
+                'RI', '#eab308', // UDPFI Yellow (darker)
+                'AM', '#eab308', // UDPFI Yellow
+                'AMM', '#ca8a04', // UDPFI Yellow
+                'AMH', '#ca8a04', // UDPFI Yellow
+                'CR', '#60a5fa', // UDPFI Blue (light)
+                'COR', '#3b82f6', // UDPFI Blue
+                'CO', '#2563eb', // UDPFI Blue
+                'COT', '#1d4ed8', // UDPFI Blue (dark)
+                'IW', '#a855f7', // UDPFI Violet/Purple
+                'IP', '#ef4444', // UDPFI Red
                 '#94a3b8'
             ],
             night: [
-                'match', ['get', 'estimated_use'],
-                'Residential (Low Density)', '#ffff00', // UDPFI Neon Yellow
-                'Residential / Independent House', '#ffea00', // UDPFI Neon Yellow
-                'Apartments / Mixed-Use', '#ffd600', // UDPFI Neon Yellow
-                'Apartments (Medium Rise)', '#ffd600', // UDPFI Neon Yellow
-                'Apartments (High Rise)', '#ffd600', // UDPFI Neon Yellow
-                'Commercial / Retail', '#00e5ff', // UDPFI Neon Blue
-                'Commercial / Office / Retail', '#00b0ff', // UDPFI Neon Blue
-                'Commercial / Office', '#2979ff', // UDPFI Neon Blue
-                'Commercial Office Tower / Corporate Hub', '#3d5afe', // UDPFI Neon Blue (dark)
-                'Industrial / Warehouse', '#d500f9', // UDPFI Neon Violet/Purple
-                'Institutional / Public Building', '#ff1744', // UDPFI Neon Red
+                'match', ['get', 'u'],
+                'RL', '#ffff00', // UDPFI Neon Yellow
+                'RI', '#ffea00', // UDPFI Neon Yellow
+                'AM', '#ffd600', // UDPFI Neon Yellow
+                'AMM', '#ffd600', // UDPFI Neon Yellow
+                'AMH', '#ffd600', // UDPFI Neon Yellow
+                'CR', '#00e5ff', // UDPFI Neon Blue
+                'COR', '#00b0ff', // UDPFI Neon Blue
+                'CO', '#2979ff', // UDPFI Neon Blue
+                'COT', '#3d5afe', // UDPFI Neon Blue (dark)
+                'IW', '#d500f9', // UDPFI Neon Violet/Purple
+                'IP', '#ff1744', // UDPFI Neon Red
                 '#80deea'
             ]
         };
@@ -1304,7 +1304,7 @@
                     'source': 'buildings',
                     'paint': {
                         'fill-extrusion-color': getActiveExtrusionColorPaint(),
-                        'fill-extrusion-height': ['get', 'height'],
+                        'fill-extrusion-height': ['get', 'h'],
                         'fill-extrusion-base': 0,
                         'fill-extrusion-opacity': activeTheme === 'night' ? 0.95 : 0.85
                     }
@@ -1492,7 +1492,7 @@
             let maxFloors = 0;
 
             features.forEach(f => {
-                const h = f.properties.height || 0;
+                const h = f.properties.h || 0;
                 sumHeight += h;
                 if (h > maxHeight) maxHeight = h;
                 
@@ -1523,12 +1523,28 @@
                 if (e.features.length > 0) {
                     const feature = e.features[0];
                     const props = feature.properties;
-                    const height = props.height || 0;
+                    const height = props.h || 0;
                     
                     // Dynamic floor count based on current selected floor height slider
                     const floors = Math.max(1, Math.round(height / selectedFloorHeight));
-                    const area = props.area ? Math.round(props.area) : '-';
-                    const estimatedUse = props.estimated_use || 'Unknown / General';
+                    const area = props.a || '-';
+                    
+                    // Map short code back to readable text
+                    const useMap = {
+                        'RL': 'Residential (Low Density)',
+                        'RI': 'Residential / Independent House',
+                        'AM': 'Apartments / Mixed-Use',
+                        'AMM': 'Apartments (Medium Rise)',
+                        'AMH': 'Apartments (High Rise)',
+                        'CR': 'Commercial / Retail',
+                        'COR': 'Commercial / Office / Retail',
+                        'CO': 'Commercial / Office',
+                        'COT': 'Commercial Office Tower / Corporate Hub',
+                        'IW': 'Industrial / Warehouse',
+                        'IP': 'Institutional / Public Building',
+                        'UNK': 'Unknown / General'
+                    };
+                    const estimatedUse = useMap[props.u] || 'Unknown / General';
 
                     const html = `
                         <div class="popup-title">Building Details</div>
