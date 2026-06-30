@@ -1189,8 +1189,11 @@
             });
         }
 
+        let isStyleReady = false;
+
         // On Map Load / Style Load
         map.on('style.load', () => {
+            isStyleReady = true;
             console.log("Map style loaded. Checking if data is ready...");
             
             // Apply vector style customizations
@@ -1205,6 +1208,7 @@
                 addEVChargersMarkers(globalEvData);
             }
         });
+
 
         // We load the data ONCE on startup using a progress-aware fetch
         console.log("Loading GeoJSON data on startup...");
@@ -1256,7 +1260,7 @@
                 calculateStats(data);
 
                 // Add to map (if style is already loaded)
-                if (map.isStyleLoaded()) {
+                if (isStyleReady) {
                     loadingText.innerText = "Rendering 3D scene...";
                     addBuildingsSourceAndLayer(data);
                     loadingOverlay.classList.add('fade-out');
@@ -1266,6 +1270,7 @@
                 alert("Building data loading failed: " + error.message);
                 loadingOverlay.classList.add('fade-out');
             }
+
         }
 
         loadBuildingData();
