@@ -482,7 +482,7 @@
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
-        <div class="loading-title">Loading 3D Buildings...</div>
+        <div class="loading-title" id="loadingText">Loading 3D Buildings...</div>
     </div>
 
     <!-- Toggle Sidebar Button (visible when sidebar is collapsed) -->
@@ -1206,35 +1206,70 @@
             }
         });
 
-        // We load the data ONCE on startup
+        // We load the data ONCE on startup using a progress-aware fetch
         console.log("Loading GeoJSON data on startup...");
-        fetch('cma_buildings_3d.geojson.gz')
-            .then(response => {
+        const loadingText = document.getElementById('loadingText');
+
+        async function loadBuildingData() {
+            try {
+                const response = await fetch('cma_buildings_3d.geojson.gz');
                 if (!response.ok) {
                     throw new Error('Data file cma_buildings_3d.geojson.gz not found.');
                 }
-                return response.arrayBuffer();
-            })
-            .then(buf => {
-                console.log("Compressed GeoJSON downloaded. Decompressing...");
-                const decompressed = fflate.gunzipSync(new Uint8Array(buf));
+
+                const reader = response.body.getReader();
+                const contentLength = +response.headers.get('Content-Length');
+                let receivedLength = 0;
+                let chunks = [];
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(value);
+                    receivedLength += value.length;
+
+                    const pct = contentLength ? Math.round((receivedLength / contentLength) * 100) : 0;
+                    const mb = (receivedLength / (1024 * 1024)).toFixed(1);
+                    const totalMb = contentLength ? (contentLength / (1024 * 1024)).toFixed(1) : '?';
+                    loadingText.innerText = `Downloading 3D Buildings: ${mb}MB / ${totalMb}MB (${pct}%)`;
+                }
+
+                loadingText.innerText = "Decompressing 3D Buildings...";
+                // Concatenate chunks
+                const allChunks = new Uint8Array(receivedLength);
+                let position = 0;
+                for (const chunk of chunks) {
+                    allChunks.set(chunk, position);
+                    position += chunk.length;
+                }
+
+                // Decompress
+                const decompressed = fflate.gunzipSync(allChunks);
+
+                loadingText.innerText = "Parsing 3D Buildings (please wait)...";
                 const jsonText = new TextDecoder().decode(decompressed);
                 const data = JSON.parse(jsonText);
+
                 console.log("Data loaded and parsed successfully. Computing statistics...");
+                loadingText.innerText = "Generating analytics...";
                 globalGeojsonData = data;
                 calculateStats(data);
-                
+
                 // Add to map (if style is already loaded)
                 if (map.isStyleLoaded()) {
+                    loadingText.innerText = "Rendering 3D scene...";
                     addBuildingsSourceAndLayer(data);
                     loadingOverlay.classList.add('fade-out');
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error("Error loading building data:", error);
-                alert("Building data 'cma_buildings_3d.geojson' not found. Please ensure you run data generation scripts first!");
+                alert("Building data loading failed: " + error.message);
                 loadingOverlay.classList.add('fade-out');
-            });
+            }
+        }
+
+        loadBuildingData();
+
 
         // Load EV Chargers data on startup
         let globalEvData = null;
