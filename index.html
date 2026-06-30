@@ -19,6 +19,10 @@
     
     <!-- fflate for fast client-side gzip decompression -->
     <script src="https://unpkg.com/fflate@0.8.2/umd/index.js"></script>
+
+    <!-- Three.js + GLTFLoader for 3D bus model rendering -->
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
     
     <style>
         :root {
@@ -535,6 +539,47 @@
                         <input type="checkbox" id="evToggle" checked style="cursor: pointer; width: 16px; height: 16px; accent-color: #10b981;">
                         <span style="font-size: 11px; color: var(--text-secondary);">Visible</span>
                     </label>
+                </div>
+            </div>
+
+            <!-- Bus Movement Layer -->
+            <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-top: 8px;">
+                <div class="control-row">
+                    <span class="control-label"><i data-lucide="bus" style="width: 13px; height: 13px; display: inline-align; vertical-align: middle; margin-right: 4px; color: #f97316;"></i>Bus Movement</span>
+                    <label style="display: flex; align-items: center; cursor: pointer; gap: 8px;">
+                        <input type="checkbox" id="busToggle" style="cursor: pointer; width: 16px; height: 16px; accent-color: #f97316;">
+                        <span style="font-size: 11px; color: var(--text-secondary);">Enable</span>
+                    </label>
+                </div>
+
+                <!-- Bus Controls (shown only when enabled) -->
+                <div id="busControls" style="display:none; margin-top: 10px;">
+                    <!-- Simulated Clock -->
+                    <div style="text-align:center; font-family: var(--font-mono); font-size: 20px; font-weight: 700; color: #f97316; letter-spacing: 2px; margin-bottom: 8px;" id="busClockDisplay">06:00:00</div>
+
+                    <!-- Play/Pause + Speed -->
+                    <div style="display:flex; gap:8px; align-items:center; margin-bottom: 8px;">
+                        <button id="busPlayBtn" style="flex:1; padding: 6px; border-radius: 8px; border: 1px solid #f97316; background: rgba(249,115,22,0.15); color: #f97316; cursor:pointer; font-size: 13px; font-weight: 600;">▶ Play</button>
+                        <select id="busSpeedSelect" style="flex:1; padding: 5px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: var(--bg-select); color: var(--text-primary); font-size: 12px;">
+                            <option value="1">1× speed</option>
+                            <option value="5">5× speed</option>
+                            <option value="10" selected>10× speed</option>
+                            <option value="30">30× speed</option>
+                            <option value="60">60× speed</option>
+                        </select>
+                    </div>
+
+                    <!-- Time Scrubber -->
+                    <div class="control-row" style="margin-bottom: 4px;">
+                        <span style="font-size: 10px; color: var(--text-secondary);">00:00</span>
+                        <span style="font-size: 10px; color: var(--text-secondary);">23:59</span>
+                    </div>
+                    <input type="range" class="slider" id="busTimeSlider" min="0" max="86399" value="21600" step="30" style="margin-bottom: 4px;">
+
+                    <!-- Bus count badge -->
+                    <div style="text-align:center; font-size: 10px; color: var(--text-secondary);">
+                        <span id="busActiveCount">0</span> buses active at this time
+                    </div>
                 </div>
             </div>
         </div>
@@ -1522,6 +1567,251 @@
                     popup = null;
                 }
             });
+
+        // ============================================================
+        // BUS MOVEMENT ENGINE — Three.js Maplibre CustomLayer
+        // ============================================================
+        const BUS_MODEL_URL = '3dbus/tayo_bus_toy_3d_model.glb';
+        const BUS_TRIPS_URL = 'bus_trips.json.gz';
+        const BUS_SCALE     = 8.5;   // visual scale on map
+        const MAX_BUSES_RENDERED = 600; // viewport cap for performance
+
+        let busTrips      = null;   // loaded JSON data
+        let busLayer      = null;   // Three.js custom layer instance
+        let busEnabled    = false;
+        let busPlaying    = false;
+        let busSimTime    = 21600;  // seconds since midnight, default 06:00
+        let busSpeed      = 10;     // playback multiplier
+        let busLastRealTs = null;   // last real timestamp for animation delta
+        let busAnimId     = null;
+
+        // DOM refs
+        const busToggle      = document.getElementById('busToggle');
+        const busControls    = document.getElementById('busControls');
+        const busPlayBtn     = document.getElementById('busPlayBtn');
+        const busSpeedSelect = document.getElementById('busSpeedSelect');
+        const busTimeSlider  = document.getElementById('busTimeSlider');
+        const busClockDisplay= document.getElementById('busClockDisplay');
+        const busActiveCount = document.getElementById('busActiveCount');
+
+        function secsToHMS(s) {
+            s = Math.floor(s) % 86400;
+            const h = Math.floor(s / 3600).toString().padStart(2,'0');
+            const m = Math.floor((s % 3600) / 60).toString().padStart(2,'0');
+            const sec = (s % 60).toString().padStart(2,'0');
+            return `${h}:${m}:${sec}`;
+        }
+
+        // Linearly interpolate position between two GPS pings
+        function interpolateBusPos(coords, simTs) {
+            if (!coords || coords.length === 0) return null;
+            if (simTs <= coords[0][2]) return { lng: coords[0][0], lat: coords[0][1] };
+            if (simTs >= coords[coords.length-1][2]) return null; // trip ended
+
+            for (let i = 0; i < coords.length - 1; i++) {
+                const [lng0, lat0, t0] = coords[i];
+                const [lng1, lat1, t1] = coords[i+1];
+                if (simTs >= t0 && simTs <= t1) {
+                    const frac = (simTs - t0) / (t1 - t0);
+                    const dLng = lng1 - lng0;
+                    const dLat = lat1 - lat0;
+                    const bearing = Math.atan2(dLng, dLat); // radians
+                    return {
+                        lng: lng0 + frac * dLng,
+                        lat: lat0 + frac * dLat,
+                        bearing
+                    };
+                }
+            }
+            return null;
+        }
+
+        // Build the Three.js CustomLayer
+        function createBusLayer(gltfScene) {
+            const THREE = window.THREE;
+
+            const scene  = new THREE.Scene();
+            const camera = new THREE.Camera();
+
+            scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            dirLight.position.set(0, -70, 100);
+            scene.add(dirLight);
+
+            const busObjects = {};
+            let threeRenderer = null;
+
+            const layer = {
+                id: 'bus-layer-3d',
+                type: 'custom',
+                renderingMode: '3d',
+
+                onAdd(map, gl) {
+                    threeRenderer = new THREE.WebGLRenderer({
+                        canvas: map.getCanvas(),
+                        context: gl,
+                        antialias: true
+                    });
+                    threeRenderer.autoClear = false;
+                    layer._map = map;
+                },
+
+                render(gl, matrix) {
+                    if (!busEnabled || !busTrips) return;
+
+                    const map   = layer._map;
+                    const bounds = map.getBounds();
+                    const zoom   = map.getZoom();
+
+                    if (zoom < 10) {
+                        busActiveCount.textContent = '(zoom in to see buses)';
+                        return;
+                    }
+
+                    const m = new THREE.Matrix4().fromArray(matrix);
+                    camera.projectionMatrix = m;
+
+                    const deviceIds = Object.keys(busTrips);
+                    const visible = [];
+
+                    for (const id of deviceIds) {
+                        if (visible.length >= MAX_BUSES_RENDERED) break;
+                        const trip = busTrips[id];
+                        const pos  = interpolateBusPos(trip.c, busSimTime);
+                        if (!pos) continue;
+                        if (pos.lng < bounds.getWest()  || pos.lng > bounds.getEast())  continue;
+                        if (pos.lat < bounds.getSouth() || pos.lat > bounds.getNorth()) continue;
+                        visible.push({ id, trip, pos });
+                    }
+
+                    // Remove off-screen objects
+                    const visSet = new Set(visible.map(v => v.id));
+                    for (const id of Object.keys(busObjects)) {
+                        if (!visSet.has(id)) {
+                            scene.remove(busObjects[id]);
+                            delete busObjects[id];
+                        }
+                    }
+
+                    // Update / add visible buses
+                    for (const { id, trip, pos } of visible) {
+                        const merc  = maplibregl.MercatorCoordinate.fromLngLat({ lng: pos.lng, lat: pos.lat }, 0);
+                        const scale = merc.meterInMercatorCoordinateUnits() * BUS_SCALE;
+
+                        if (!busObjects[id]) {
+                            const obj = gltfScene.clone(true);
+                            busObjects[id] = obj;
+                            scene.add(obj);
+                        }
+
+                        const obj = busObjects[id];
+                        obj.position.set(merc.x, merc.y, merc.z);
+                        obj.scale.set(scale, -scale, scale);
+                        if (pos.bearing !== undefined) {
+                            obj.rotation.set(Math.PI / 2, 0, pos.bearing + Math.PI);
+                        }
+                    }
+
+                    busActiveCount.textContent = visible.length;
+
+                    threeRenderer.resetState();
+                    threeRenderer.render(scene, camera);
+                    map.triggerRepaint();
+                }
+            };
+
+            return layer;
+        }
+
+        // Load trip data + GLB model, add layer to map
+        async function initBusSystem() {
+            if (busTrips !== null) return;
+            busClockDisplay.textContent = 'Loading…';
+
+            try {
+                const [trips, gltfScene] = await Promise.all([
+                    fetch(BUS_TRIPS_URL)
+                        .then(r => {
+                            if (!r.ok) throw new Error('bus_trips.json.gz not found — run process_bus_gps.py first');
+                            return r.arrayBuffer();
+                        })
+                        .then(buf => new Promise((res, rej) => {
+                            fflate.gunzip(new Uint8Array(buf), (err, data) => {
+                                if (err) return rej(err);
+                                res(JSON.parse(new TextDecoder().decode(data)));
+                            });
+                        })),
+                    new Promise((resolve, reject) => {
+                        const loader = new THREE.GLTFLoader();
+                        loader.load(BUS_MODEL_URL, gltf => resolve(gltf.scene), undefined, reject);
+                    })
+                ]);
+
+                busTrips = trips;
+                busLayer = createBusLayer(gltfScene);
+                map.addLayer(busLayer);
+                busClockDisplay.textContent = secsToHMS(busSimTime);
+                console.log(`Bus layer ready — ${Object.keys(busTrips).length} trips loaded`);
+            } catch(e) {
+                console.error('Bus init error:', e);
+                busClockDisplay.textContent = 'Error: ' + e.message;
+                busToggle.checked = false;
+                busEnabled = false;
+                busControls.style.display = 'none';
+            }
+        }
+
+        // Animation tick
+        function busAnimationTick(realTs) {
+            if (!busPlaying) return;
+            if (busLastRealTs !== null) {
+                const delta = (realTs - busLastRealTs) / 1000;
+                busSimTime += delta * busSpeed;
+                if (busSimTime >= 86400) busSimTime = 0;
+                busTimeSlider.value = Math.floor(busSimTime);
+                busClockDisplay.textContent = secsToHMS(busSimTime);
+            }
+            busLastRealTs = realTs;
+            map.triggerRepaint();
+            busAnimId = requestAnimationFrame(busAnimationTick);
+        }
+
+        // — Toggle enable/disable —
+        busToggle.addEventListener('change', async () => {
+            busEnabled = busToggle.checked;
+            busControls.style.display = busEnabled ? 'block' : 'none';
+            if (busEnabled) {
+                await initBusSystem();
+            } else {
+                busPlaying = false;
+                busPlayBtn.textContent = '▶ Play';
+                cancelAnimationFrame(busAnimId);
+            }
+        });
+
+        // — Play / Pause —
+        busPlayBtn.addEventListener('click', () => {
+            busPlaying = !busPlaying;
+            busPlayBtn.textContent = busPlaying ? '⏸ Pause' : '▶ Play';
+            if (busPlaying) {
+                busLastRealTs = null;
+                busAnimId = requestAnimationFrame(busAnimationTick);
+            } else {
+                cancelAnimationFrame(busAnimId);
+            }
+        });
+
+        // — Speed —
+        busSpeedSelect.addEventListener('change', () => {
+            busSpeed = parseInt(busSpeedSelect.value, 10);
+        });
+
+        // — Manual time scrub —
+        busTimeSlider.addEventListener('input', () => {
+            busSimTime = parseInt(busTimeSlider.value, 10);
+            busClockDisplay.textContent = secsToHMS(busSimTime);
+            map.triggerRepaint();
+        });
 
         }
     </script>
