@@ -1573,7 +1573,7 @@
         // ============================================================
         const BUS_MODEL_URL      = '3dbus/tayo_bus_toy_3d_model.glb';
         const BUS_TRIPS_URL      = 'bus_trips.json.gz';
-        const BUS_SCALE          = 10.0; // scale factor for the 3D model
+        const BUS_SCALE          = 20.0; // scale factor (20.0 makes the bus ~12m long, matching real bus proportions)
         const MAX_BUS_MARKERS    = 150;  // cap visible buses for rendering performance
 
         let busTrips         = null;
@@ -1714,8 +1714,9 @@
 
                     // Update / add visible buses
                     for (const { id, trip, pos } of visible) {
-                        // Offset altitude by 1.1 meters so wheels touch street level
-                        const merc  = maplibregl.MercatorCoordinate.fromLngLat({ lng: pos.lng, lat: pos.lat }, 1.1);
+                        // Offset altitude dynamically so wheels touch street level based on scale
+                        const altitude = 0.106 * BUS_SCALE; 
+                        const merc  = maplibregl.MercatorCoordinate.fromLngLat({ lng: pos.lng, lat: pos.lat }, altitude);
                         const scale = merc.meterInMercatorCoordinateUnits() * BUS_SCALE;
 
                         if (!busObjects[id]) {
