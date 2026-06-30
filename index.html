@@ -719,6 +719,14 @@
     </div>
 
     <script>
+        // Floating error banner helper for debugging
+        window.onerror = function(message, source, lineno, colno, error) {
+            const div = document.createElement('div');
+            div.style.cssText = 'position:fixed; bottom:20px; right:20px; background:rgba(220,38,38,0.95); color:white; padding:16px; border-radius:8px; z-index:99999; font-family:monospace; max-width:450px; font-size:12px; white-space:pre-wrap; border:1px solid #ef4444; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);';
+            div.innerText = `JS Error: ${message}\nLine: ${lineno}\nSource: ${source.split('/').pop()}`;
+            document.body.appendChild(div);
+        };
+
         // Initialize Lucide Icons
         lucide.createIcons();
 
@@ -1564,9 +1572,9 @@
                 map.getCanvas().style.cursor = '';
                 if (popup) {
                     popup.remove();
-                    popup = null;
                 }
             });
+        }
 
         // ============================================================
         // BUS MOVEMENT ENGINE — Three.js Maplibre CustomLayer
@@ -1780,6 +1788,15 @@
                 ]);
 
                 busTrips = trips;
+
+                // Disable frustum culling on all meshes to prevent Three.js from culling them
+                // when overriding the camera projection matrix
+                gltfScene.traverse(child => {
+                    if (child.isMesh) {
+                        child.frustumCulled = false;
+                    }
+                });
+
                 gltfTemplate = gltfScene;
 
                 // Find actual Unix timestamp range across all trips
@@ -1875,9 +1892,8 @@
             busClockDisplay.textContent = unixToHMS(busSimUnixTs);
             map.triggerRepaint();
         });
-
-        }
     </script>
 </body>
 </html>
+
 
