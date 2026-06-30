@@ -1647,6 +1647,10 @@
             const scene  = new THREE.Scene();
             const camera = new THREE.Camera();
 
+            // Center of Chennai CMA for origin shift (resolves float32 precision loss)
+            const mapCenter = [80.1462, 13.0067];
+            const mapCenterMerc = maplibregl.MercatorCoordinate.fromLngLat(mapCenter, 0);
+
             // Light setup
             scene.add(new THREE.AmbientLight(0xffffff, 2.2));
             const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.8);
@@ -1692,8 +1696,10 @@
                         return;
                     }
 
-                    // Align Three.js projection camera matrix with Maplibre GL map projection matrix
-                    camera.projectionMatrix.fromArray(matrix);
+                    // Apply origin shift to map projection matrix to map (0,0,0) in Three.js to mapCenterMerc
+                    const m = new THREE.Matrix4().fromArray(matrix);
+                    const translate = new THREE.Matrix4().makeTranslation(mapCenterMerc.x, mapCenterMerc.y, mapCenterMerc.z);
+                    camera.projectionMatrix = m.multiply(translate);
 
                     const visible = [];
                     const deviceIds = Object.keys(busTrips);
@@ -1725,6 +1731,12 @@
                         // Offset altitude dynamically so wheels touch street level based on scale
                         const altitude = 0.106 * BUS_SCALE; 
                         const merc  = maplibregl.MercatorCoordinate.fromLngLat({ lng: pos.lng, lat: pos.lat }, altitude);
+                        
+                        // Calculate coordinates relative to the shifted origin
+                        const dx = merc.x - mapCenterMerc.x;
+                        const dy = merc.y - mapCenterMerc.y;
+                        const dz = merc.z - mapCenterMerc.z;
+                        
                         const scale = merc.meterInMercatorCoordinateUnits() * BUS_SCALE;
 
                         if (!busObjects[id]) {
@@ -1734,7 +1746,7 @@
                         }
 
                         const obj = busObjects[id];
-                        obj.position.set(merc.x, merc.y, merc.z);
+                        obj.position.set(dx, dy, dz);
                         obj.scale.set(scale, -scale, scale);
                         if (pos.bearing !== undefined) {
                             // Rotate around Z axis (UP in Mercator coordinate space)
@@ -1743,6 +1755,7 @@
                     }
 
                     busActiveCount.textContent = visible.length;
+
 
                     // Trigger Three.js render inside Maplibre WebGL context
                     threeRenderer.resetState();
