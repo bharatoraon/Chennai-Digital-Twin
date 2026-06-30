@@ -14,3 +14,8 @@ __pycache__/
 *.pyo
 *.pyd
 .ipynb_checkpoints/
+
+# Bus GPS data
+Bus_GPS_Data/
+bus_trips.json
+index_rich.html
